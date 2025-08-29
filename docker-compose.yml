@@ -1,0 +1,40 @@
+services:
+  sharpclient:
+    build:
+      context: ./SharpClient
+      dockerfile: Dockerfile
+    depends_on:
+      - ollama
+    container_name: sharpclient
+    environment:
+      - OLLAMA_ENDPOINT=http://ollama:11434/api/generate #Docker hosted endpoint
+      #- OLLAMA_ENDPOINT=http://host.docker.internal:11434/api/generate #Locally hosted endpoint
+    networks:
+      - main
+    #Uncomment if running ollama locally
+    #extra_hosts:
+    #  - "host.docker.internal:host-gateway" #remap to host.docker.internal so Linux matches Windows/MacOS
+
+  #Remove this service is running locally
+  ollama:
+    image: ollama/ollama
+    container_name: ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    networks:
+      - main
+    volumes:
+      - ollama_data:/root/.ollama
+
+networks:
+  main:
+    driver: bridge
+
+volumes:
+  #Remove this volume if running ollama locally
+  ollama_data:
