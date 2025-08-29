@@ -44,6 +44,7 @@ format?: ""celsius"" | ""fahrenheit"", // default: celsius
 
 } // namespace functions<|end|>";
 
+
 //var userMessage = "<|start|>user<|message|>Can you explain how to find the volume of the shape defined by rho^2=9?<|end|><|start|>assistant";
 var userMessage = "<|start|>user<|message|>Could you tell me the current weather in SF?<|end|><|start|>assistant";
 
@@ -64,7 +65,7 @@ var requestBody = new
         temperature = 0.95,
         num_predict = 2000,
         num_ctx = 4096,
-        //num_gpu = 0 //Configure if model is crashing (Lower = Less GPU Offload)
+        //num_gpu = 0 //Configure if model is crashing (Lower Number = Less GPU Offload)
     },
     raw = true
 };
