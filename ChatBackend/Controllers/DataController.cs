@@ -2,15 +2,15 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace ChatBackend.Controllers;
 
-[Route("api/[controller]")]
 [ApiController]
+[Route("api/[controller]")]
 public class DataController : ControllerBase
 {
-    [HttpGet]
-    public async Task GetMessageAsync()
+    [HttpPost]
+    public async Task PostMessageAsync([FromBody] string userPrompt)
     {
         Response.ContentType = "text/plain";
-        await foreach (var chunk in OllamaTest.GetCompletion())
+        await foreach (var chunk in OllamaTest.GetCompletion(userPrompt))
         {
             await Response.WriteAsync(chunk);
             await Response.Body.FlushAsync();

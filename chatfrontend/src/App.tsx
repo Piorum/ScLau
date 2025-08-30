@@ -7,25 +7,42 @@ function App() {
   const [inputValue, setInputValue] = useState('');
 
   const fetchData = async () => {
-    // You can use the inputValue state here when making an API call
     console.log('Sending message:', inputValue);
 
     setMessage(''); // Clear previous message
-    const response = await fetch('/api/data'); // This is a placeholder
-    const reader = response.body?.getReader();
-    const decoder = new TextDecoder();
+    try {
+      const response = await fetch('/api/data', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(inputValue),
+      });
 
-    if (reader) {
-      const read = async () => {
-        const { done, value } = await reader.read();
-        if (done) {
-          return;
-        }
-        const chunk = decoder.decode(value, { stream: true });
-        setMessage(prevMessage => prevMessage + chunk);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      setInputValue(''); // Clear the input box
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (reader) {
+        const read = async () => {
+          const { done, value } = await reader.read();
+          if (done) {
+            return;
+          }
+          const chunk = decoder.decode(value, { stream: true });
+          setMessage(prevMessage => prevMessage + chunk);
+          read();
+        };
         read();
-      };
-      read();
+      }
+    } catch (error) {
+      console.error('Error sending data:', error);
+      setMessage(`Error: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
 
