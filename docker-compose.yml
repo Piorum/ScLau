@@ -1,11 +1,23 @@
 services:
-  sharpclient:
+  chatfrontend:
     build:
-      context: ./SharpClient
+      context: ./ChatFrontend
+      dockerfile: Dockerfile
+    depends_on:
+      - chatbackend
+    container_name: chatfrontend
+    networks:
+      - main
+    ports:
+      - "8080:80"
+
+  chatbackend:
+    build:
+      context: ./ChatBackend
       dockerfile: Dockerfile
     depends_on:
       - ollama
-    container_name: sharpclient
+    container_name: chatbackend
     environment:
       - OLLAMA_ENDPOINT=http://ollama:11434/api/generate #Docker hosted endpoint
       #- OLLAMA_ENDPOINT=http://host.docker.internal:11434/api/generate #Locally hosted endpoint

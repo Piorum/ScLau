@@ -1,4 +1,4 @@
-#OllamaTest
+#ChatBackend
 FROM mcr.microsoft.com/dotnet/sdk AS build
 WORKDIR /App
 
@@ -9,7 +9,7 @@ WORKDIR /App/
 RUN dotnet restore 
 RUN dotnet publish -o out
 
-FROM mcr.microsoft.com/dotnet/runtime
+FROM mcr.microsoft.com/dotnet/aspnet
 WORKDIR /App
 COPY --from=build /App/out .
-ENTRYPOINT [ "dotnet", "OllamaTest.dll" ]
+ENTRYPOINT [ "dotnet", "ChatBackend.dll" ]
