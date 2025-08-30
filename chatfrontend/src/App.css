@@ -73,7 +73,7 @@ button {
   border-radius: 15px;
   font-size: 1rem;
   cursor: pointer;
-  transition: background-color 0.3s ease;
+  transition: border-color 0.3s ease;
 }
 
 button:hover {
