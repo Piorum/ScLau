@@ -4,10 +4,14 @@ import './App.css';
 
 function App() {
   const [message, setMessage] = useState('');
+  const [inputValue, setInputValue] = useState('');
 
   const fetchData = async () => {
-    setMessage('');
-    const response = await fetch('/api/data');
+    // You can use the inputValue state here when making an API call
+    console.log('Sending message:', inputValue);
+
+    setMessage(''); // Clear previous message
+    const response = await fetch('/api/data'); // This is a placeholder
     const reader = response.body?.getReader();
     const decoder = new TextDecoder();
 
@@ -25,14 +29,32 @@ function App() {
     }
   };
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputValue(e.target.value);
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      fetchData();
+    }
+  };
+
+
   return (
     <div className="App">
-      <header className="App-header">
-        <div className="markdown-container">
-          <ReactMarkdown>{message}</ReactMarkdown>
-        </div>
-        <button onClick={fetchData}>Fetch Data</button>
-      </header>
+      <div className="markdown-container">
+        <ReactMarkdown>{message}</ReactMarkdown>
+      </div>
+      <div className="input-area">
+        <input
+          type="text"
+          value={inputValue}
+          onChange={handleInputChange}
+          onKeyPress={handleKeyPress}
+          placeholder="Type your message here..."
+        />
+        <button onClick={fetchData}>Send</button>
+      </div>
     </div>
   );
 }

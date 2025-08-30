@@ -1,42 +1,81 @@
-.App {
-  text-align: center;
+/* General body styling for the dark theme */
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #191919;
 }
 
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
+/* Main App container using flexbox for layout */
+.App {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
+  height: 100vh;
+  background-color: #1a1a1a;
+  color: #e0e0e0;
 }
 
+/* Markdown container taking up the remaining space */
 .markdown-container {
-  background-color: #f0f0f0;
-  color: #333;
-  padding: 20px;
-  border-radius: 8px;
-  width: 80%;
-  max-width: 800px;
-  height: 60vh;
+  flex-grow: 1;
+  background-color: #1f1f1f;
+  color: #e2e2e5;
+  border: 1px solid #2a2a2a;
+  border-radius: 15px;
+  margin: 10px 10px 0px;
+  padding: 0px 20px;
   overflow-y: auto;
   text-align: left;
-  margin-bottom: 20px;
 }
 
+/* Stlying for most browsers */
+.markdown-container::-webkit-scrollbar {
+  display: none;
+}
+/* Styling for firefox */
+.markdown-container {
+  scrollbar-width: none;
+}
+
+/* Styling for the bottom input area */
+.input-area {
+  display: flex;
+  padding: 10px;
+  gap: 10px; /* Adds space between the input and the button */
+}
+
+/* Styling for the text input */
+input[type="text"] {
+  flex-grow: 1;
+  padding: 12px 15px;
+  font-size: 1rem;
+  border-radius: 15px;
+  border: 1px solid #2a2a2a;
+  background-color: #1f1f1f;
+  color: #e2e2e5;
+  outline: none;
+  transition: border-color 0.3s ease;
+}
+
+input[type="text"]:focus {
+  border-color: #e2e2e5;
+}
+
+/* Updated button styling for the dark theme */
 button {
-  background-color: #61dafb;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 5px;
-  font-size: 1.2rem;
+  background-color: #1f1f1f;
+  color: #e2e2e5;
+  border: 1px solid #2a2a2a;
+  padding: 12px 25px;
+  border-radius: 15px;
+  font-size: 1rem;
   cursor: pointer;
   transition: background-color 0.3s ease;
 }
 
 button:hover {
-  background-color: #4fa8c4;
+  border-color: #e2e2e5;
 }
