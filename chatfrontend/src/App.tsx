@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import ReactMarkdown from 'react-markdown';
 import './App.css';
 
 function App() {
@@ -17,7 +18,6 @@ function App() {
           return;
         }
         const chunk = decoder.decode(value, { stream: true });
-        console.log('Received chunk:', chunk);
         setMessage(prevMessage => prevMessage + chunk);
         read();
       };
@@ -28,7 +28,9 @@ function App() {
   return (
     <div className="App">
       <header className="App-header">
-        <textarea value={message} readOnly rows={10} cols={50} />
+        <div className="markdown-container">
+          <ReactMarkdown>{message}</ReactMarkdown>
+        </div>
         <button onClick={fetchData}>Fetch Data</button>
       </header>
     </div>
