@@ -7,11 +7,16 @@ namespace ChatBackend.Controllers;
 public class DataController : ControllerBase
 {
     [HttpGet]
-    public async Task<IActionResult> GetMessageAsync()
+    [HttpGet]
+    public async Task GetMessageAsync()
     {
-        var aiResponse = await OllamaTest.GetCompletion();
-        var message = new { Text = aiResponse };
-        return Ok(message);
+        Response.ContentType = "text/plain";
+        await foreach (var chunk in OllamaTest.GetCompletion())
+        {
+            Console.WriteLine($"Sending chunk: {chunk}");
+            await Response.WriteAsync(chunk);
+            await Response.Body.FlushAsync();
+        }
     }
 }
 

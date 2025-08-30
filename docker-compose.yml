@@ -1,7 +1,7 @@
 services:
   chatfrontend:
     build:
-      context: ./ChatFrontend
+      context: ./chatfrontend
       dockerfile: Dockerfile
     depends_on:
       - chatbackend
