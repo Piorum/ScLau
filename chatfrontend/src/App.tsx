@@ -9,21 +9,24 @@ function App() {
   const fetchData = async () => {
     console.log('Sending message:', inputValue);
 
-    setMessage(''); // Clear previous message
+    const currentInputValue = inputValue; // Store current input value
+    setInputValue(''); // Clear the input box immediately
+    setMessage('Starting request...'); // Set temporary message
+
     try {
       const response = await fetch('/api/data', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(inputValue),
+        body: JSON.stringify(currentInputValue), // Use stored value
       });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      setInputValue(''); // Clear the input box
+      setMessage(''); // Clear temporary message before streaming starts
 
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
