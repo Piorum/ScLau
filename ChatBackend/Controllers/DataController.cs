@@ -1,21 +1,24 @@
 using Microsoft.AspNetCore.Mvc;
+using System.Threading.Tasks;
 
-namespace ChatBackend.Controllers;
-
-[ApiController]
-[Route("api/[controller]")]
-public class DataController : ControllerBase
+namespace ChatBackend.Controllers
 {
-    [HttpPost]
-    public async Task PostMessageAsync([FromBody] string userPrompt)
+    [ApiController]
+    [Route("api/[controller]")]
+    public class DataController : ControllerBase
     {
-        Response.ContentType = "application/json";
-        await foreach (var chunk in Ollama.GetCompletion(userPrompt))
+        [HttpPost]
+        public async Task PostMessageAsync([FromBody] string userPrompt)
         {
-            var jsonChunk = System.Text.Json.JsonSerializer.Serialize(new { chunk });
-            await Response.WriteAsync(jsonChunk);
-            await Response.Body.FlushAsync();
+            Response.ContentType = "application/json";
+            var channelReader = Ollama.GetCompletion(userPrompt);
+
+            await foreach (var ollamaResponse in channelReader.ReadAllAsync())
+            {
+                var jsonChunk = System.Text.Json.JsonSerializer.Serialize(new { ollamaResponse.Response });
+                await Response.WriteAsync(jsonChunk);
+                await Response.Body.FlushAsync();
+            }
         }
     }
 }
-

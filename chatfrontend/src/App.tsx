@@ -32,19 +32,39 @@ function App() {
       const decoder = new TextDecoder();
 
       if (reader) {
+        let buffer = '';
         const read = async () => {
           const { done, value } = await reader.read();
           if (done) {
             return;
           }
-          const chunk = decoder.decode(value, { stream: true });
-          try {
-            const parsed = JSON.parse(chunk);
-            setMessage(prevMessage => prevMessage + parsed.chunk);
-          } catch (e) {
-            // not a json, probably just a string
-            setMessage(prevMessage => prevMessage + chunk);
+          buffer += decoder.decode(value, { stream: true });
+
+          let braceCount = 0;
+          let lastCut = 0;
+          for (let i = 0; i < buffer.length; i++) {
+            if (buffer[i] === '{') {
+              braceCount++;
+            } else if (buffer[i] === '}') {
+              braceCount--;
+              if (braceCount === 0) {
+                const jsonStr = buffer.substring(lastCut, i + 1);
+                lastCut = i + 1;
+                try {
+                  const parsed = JSON.parse(jsonStr);
+                  if (parsed.Response) {
+                    setMessage(prevMessage => prevMessage + parsed.Response);
+                  }
+                  if (parsed.Done) {
+                    return;
+                  }
+                } catch (e) {
+                  console.error('Error parsing JSON:', e, 'Chunk:', jsonStr);
+                }
+              }
+            }
           }
+          buffer = buffer.substring(lastCut);
           read();
         };
         read();
