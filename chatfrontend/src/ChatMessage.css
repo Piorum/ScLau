@@ -49,3 +49,17 @@
     opacity: 1;
   }
 }
+
+.chat-message pre {
+  background-color: #2a2a2a;
+  padding: 10px;
+  border-radius: 5px;
+  overflow-x: auto; /* Add horizontal scroll for overflowing code */
+}
+
+.chat-message code {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.9em;
+  white-space: pre-wrap; /* Ensure long lines wrap */
+  word-break: break-all; /* Break long words if necessary */
+}
