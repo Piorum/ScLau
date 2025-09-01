@@ -1,17 +1,36 @@
 import React, { useState } from 'react';
-import ReactMarkdown from 'react-markdown';
 import './App.css';
+import './ChatMessage.css';
+import './ChatHistory.css';
+import ChatHistory from './ChatHistory';
+import { Message } from './ChatMessage';
 
 function App() {
-  const [message, setMessage] = useState('');
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
 
   const fetchData = async () => {
-    console.log('Sending message:', inputValue);
+    if (!inputValue.trim()) return;
 
-    const currentInputValue = inputValue; // Store current input value
-    setInputValue(''); // Clear the input box immediately
-    setMessage('Starting request...'); // Set temporary message
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      text: inputValue,
+      sender: 'user',
+    };
+    setMessages(prevMessages => [...prevMessages, userMessage]);
+
+    const currentInputValue = inputValue;
+    setInputValue('');
+
+    // Placeholder for AI reasoning
+    const reasoningId = (Date.now() + 1).toString();
+    const reasoningMessage: Message = {
+      id: reasoningId,
+      text: 'Thinking...', 
+      sender: 'ai-reasoning',
+    };
+    setMessages(prevMessages => [...prevMessages, reasoningMessage]);
+
 
     try {
       const response = await fetch('/api/data', {
@@ -19,14 +38,23 @@ function App() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(currentInputValue), // Use stored value
+        body: JSON.stringify(currentInputValue),
       });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
+      
+      // Remove "Thinking..." message
+      setMessages(prevMessages => prevMessages.filter(m => m.id !== reasoningId));
 
-      setMessage(''); // Clear temporary message before streaming starts
+      const aiAnswerId = (Date.now() + 2).toString();
+      const aiAnswerMessage: Message = {
+        id: aiAnswerId,
+        text: '',
+        sender: 'ai-answer',
+      };
+      setMessages(prevMessages => [...prevMessages, aiAnswerMessage]);
 
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
@@ -46,10 +74,11 @@ function App() {
               try {
                 const parsed = JSON.parse(line);
                 if (parsed.response) {
-                  setMessage(prevMessage => prevMessage + parsed.response);
-                }
-                if (parsed.Done) {
-                  return;
+                  setMessages(prevMessages => prevMessages.map(m => 
+                    m.id === aiAnswerId 
+                      ? { ...m, text: m.text + parsed.response }
+                      : m
+                  ));
                 }
               } catch (e) {
                 console.error('Error parsing JSON:', e, 'Line:', line);
@@ -63,8 +92,12 @@ function App() {
         read();
       }
     } catch (error) {
-      console.error('Error sending data:', error);
-      setMessage(`Error: ${error instanceof Error ? error.message : String(error)}`);
+      const errorMessage: Message = {
+        id: (Date.now() + 3).toString(),
+        text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+        sender: 'ai-reasoning',
+      };
+      setMessages(prevMessages => [...prevMessages.filter(m => m.id !== reasoningId), errorMessage]);
     }
   };
 
@@ -78,12 +111,9 @@ function App() {
     }
   };
 
-
   return (
     <div className="App">
-      <div className="markdown-container">
-        <ReactMarkdown>{message}</ReactMarkdown>
-      </div>
+      <ChatHistory messages={messages} />
       <div className="input-area">
         <input
           type="text"

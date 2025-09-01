@@ -13,32 +13,12 @@ body {
 .App {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100dvh;
   background-color: #1a1a1a;
   color: #e0e0e0;
 }
 
-/* Markdown container taking up the remaining space */
-.markdown-container {
-  flex-grow: 1;
-  background-color: #1f1f1f;
-  color: #e2e2e5;
-  border: 1px solid #2a2a2a;
-  border-radius: 15px;
-  margin: 10px 10px 0px;
-  padding: 0px 20px;
-  overflow-y: auto;
-  text-align: left;
-}
 
-/* Stlying for most browsers */
-.markdown-container::-webkit-scrollbar {
-  display: none;
-}
-/* Styling for firefox */
-.markdown-container {
-  scrollbar-width: none;
-}
 
 /* Styling for the bottom input area */
 .input-area {
@@ -67,15 +47,17 @@ input[type="text"]:focus {
 /* Updated button styling for the dark theme */
 button {
   background-color: #1f1f1f;
-  color: #e2e2e5;
+  color: #757575;
   border: 1px solid #2a2a2a;
   padding: 12px 25px;
   border-radius: 15px;
   font-size: 1rem;
   cursor: pointer;
+  transition: color 0.3s ease;
   transition: border-color 0.3s ease;
 }
 
 button:hover {
+  color: #e2e2e5;
   border-color: #e2e2e5;
 }
