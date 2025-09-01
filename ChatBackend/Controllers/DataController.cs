@@ -9,10 +9,11 @@ public class DataController : ControllerBase
     [HttpPost]
     public async Task PostMessageAsync([FromBody] string userPrompt)
     {
-        Response.ContentType = "text/plain";
-        await foreach (var chunk in OllamaTest.GetCompletion(userPrompt))
+        Response.ContentType = "application/json";
+        await foreach (var chunk in Ollama.GetCompletion(userPrompt))
         {
-            await Response.WriteAsync(chunk);
+            var jsonChunk = System.Text.Json.JsonSerializer.Serialize(new { chunk });
+            await Response.WriteAsync(jsonChunk);
             await Response.Body.FlushAsync();
         }
     }

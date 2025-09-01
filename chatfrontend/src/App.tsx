@@ -38,7 +38,13 @@ function App() {
             return;
           }
           const chunk = decoder.decode(value, { stream: true });
-          setMessage(prevMessage => prevMessage + chunk);
+          try {
+            const parsed = JSON.parse(chunk);
+            setMessage(prevMessage => prevMessage + parsed.chunk);
+          } catch (e) {
+            // not a json, probably just a string
+            setMessage(prevMessage => prevMessage + chunk);
+          }
           read();
         };
         read();

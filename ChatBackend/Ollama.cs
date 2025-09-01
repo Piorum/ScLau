@@ -3,7 +3,7 @@ using System.Text.Json;
 
 namespace ChatBackend;
 
-public static class OllamaTest
+public static class Ollama
 {
     public static async IAsyncEnumerable<string> GetCompletion(string userPrompt)
     {
