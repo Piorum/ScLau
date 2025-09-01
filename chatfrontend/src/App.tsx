@@ -39,32 +39,25 @@ function App() {
             return;
           }
           buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
 
-          let braceCount = 0;
-          let lastCut = 0;
-          for (let i = 0; i < buffer.length; i++) {
-            if (buffer[i] === '{') {
-              braceCount++;
-            } else if (buffer[i] === '}') {
-              braceCount--;
-              if (braceCount === 0) {
-                const jsonStr = buffer.substring(lastCut, i + 1);
-                lastCut = i + 1;
-                try {
-                  const parsed = JSON.parse(jsonStr);
-                  if (parsed.Response) {
-                    setMessage(prevMessage => prevMessage + parsed.Response);
-                  }
-                  if (parsed.Done) {
-                    return;
-                  }
-                } catch (e) {
-                  console.error('Error parsing JSON:', e, 'Chunk:', jsonStr);
+          lines.slice(0, -1).forEach(line => {
+            if (line) {
+              try {
+                const parsed = JSON.parse(line);
+                if (parsed.response) {
+                  setMessage(prevMessage => prevMessage + parsed.response);
                 }
+                if (parsed.Done) {
+                  return;
+                }
+              } catch (e) {
+                console.error('Error parsing JSON:', e, 'Line:', line);
               }
             }
-          }
-          buffer = buffer.substring(lastCut);
+          });
+
+          buffer = lines[lines.length - 1];
           read();
         };
         read();

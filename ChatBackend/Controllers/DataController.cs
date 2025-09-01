@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-using System.Threading.Tasks;
 
 namespace ChatBackend.Controllers
 {
@@ -15,8 +14,8 @@ namespace ChatBackend.Controllers
 
             await foreach (var ollamaResponse in channelReader.ReadAllAsync())
             {
-                var jsonChunk = System.Text.Json.JsonSerializer.Serialize(new { ollamaResponse.Response });
-                await Response.WriteAsync(jsonChunk);
+                var jsonChunk = System.Text.Json.JsonSerializer.Serialize(ollamaResponse);
+                await Response.WriteAsync(jsonChunk + "\n");
                 await Response.Body.FlushAsync();
             }
         }
