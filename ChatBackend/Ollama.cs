@@ -14,17 +14,27 @@ public class OllamaRequest
     [JsonPropertyName("options")]
     public OllamaOptions? Options { get; set; }
     [JsonPropertyName("raw")]
-    public bool Raw { get; set; }
+    public bool Raw { get; set; } = true;
+    [JsonPropertyName("stop")]
+    public string[]? StopTokens { get; set; } = ["<|return|>", "<|call|>"];
 }
 
 public class OllamaOptions
 {
     [JsonPropertyName("temperature")]
-    public double Temperature { get; set; }
+    public double Temperature { get; set; } = 1.0;
     [JsonPropertyName("num_predict")]
-    public int NumPredict { get; set; }
+    public int NumPredict { get; set; } = -2; //Fill context (-1 == Inifinte)
     [JsonPropertyName("num_ctx")]
-    public int NumCtx { get; set; }
+    public int NumCtx { get; set; } = 8192;
+    [JsonPropertyName("repeat_penalty")]
+    public double RepeatPenalty { get; set; } = 1.0;
+    [JsonPropertyName("top_k")]
+    public int TopK { get; set; } = 40;
+    [JsonPropertyName("top_p")]
+    public double TopP { get; set; } = 0.95;
+    [JsonPropertyName("min_p")]
+    public double MinP { get; set; } = 0.05;
 
 }
 
@@ -47,15 +57,18 @@ public static class Ollama
             string url = Environment.GetEnvironmentVariable("OLLAMA_ENDPOINT") ?? throw new("OLLAMA_ENDPOINT was null");
             var requestBody = new OllamaRequest
             {
-                Prompt = "<|start|>system<|message|>You are ChatGPT, a large language model trained by OpenAI.\nKnowledge cutoff: 2024-06\nCurrent date: 2025-06-28\n\nReasoning: high\n\n# Valid channels: analysis, commentary, final. Channel must be included for every message.\nCalls to these tools must go to the commentary channel: 'functions'.<|end|><|start|>developer<|message|># Instructions\n\nUse a friendly tone.\n\n# Tools\n\n## functions\n\nnamespace functions {\n\n// Gets the location of the user.\ntype get_location = () => any;\n\n// Gets the current weather in the provided location.\ntype get_current_weather = (_: {\n// The city and state, e.g. San Francisco, CA\nlocation: string,\nformat?: \"celsius\" | \"fahrenheit\", // default: celsius\n}) => any;\n\n// Gets the current weather in the provided list of locations.\ntype get_multiple_weathers = (_: {\n// List of city and state, e.g. [\"San Francisco, CA\", \"New York, NY\"]\nlocations: string[],\nformat?: \"celsius\" | \"fahrenheit\", // default: celsius\n}) => any;\n\n} // namespace functions<|end|><|start|>user<|message|>" + prompt + "<|end|><|start|>assistant",
-                Model = "gpt-oss:20b",
+                Prompt = "<|start|>system<|message|>You are a large language model (LLM).\nKnowledge cutoff: 2024-06\nCurrent date: 2025-06-28\n\nReasoning: high\n\n# Valid channels: analysis, commentary, final. Channel must be included for every message.\nCalls to these tools must go to the commentary channel: 'functions'.<|end|><|start|>developer<|message|># Instructions\n\nFulfill the request to the best of your abilities\n\n# Tools\n\n## functions\n\nnamespace functions {\n\n// Gets the location of the user.\ntype get_location = () => any;\n\n// Gets the current weather in the provided location.\ntype get_current_weather = (_: {\n// The city and state, e.g. San Francisco, CA\nlocation: string,\nformat?: \"celsius\" | \"fahrenheit\", // default: celsius\n}) => any;\n\n// Gets the current weather in the provided list of locations.\ntype get_multiple_weathers = (_: {\n// List of city and state, e.g. [\"San Francisco, CA\", \"New York, NY\"]\nlocations: string[],\nformat?: \"celsius\" | \"fahrenheit\", // default: celsius\n}) => any;\n\n} // namespace functions<|end|><|start|>user<|message|>" + prompt + "<|end|><|start|>assistant",
+                //Base Model: (https://huggingface.co/huihui-ai/Huihui-gpt-oss-20b-BF16-abliterated) | Stop tokens adjusted via Modelfile (["<|return|>", "<|call|>"])
+                Model = "gpt-oss-20b-abliterated:latest",
                 Options = new OllamaOptions
                 {
-                    Temperature = 0.95,
+                    Temperature = 0.6,
                     NumPredict = 2000,
-                    NumCtx = 4096,
+                    NumCtx = 8192,
+                    RepeatPenalty = 1.15
                 },
-                Raw = true
+                Raw = true,
+                StopTokens = null
             };
             var jsonRequest = JsonSerializer.Serialize(requestBody);
             var request = new HttpRequestMessage(HttpMethod.Post, url)
