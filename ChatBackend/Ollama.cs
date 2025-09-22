@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Channels;
+using ChatBackend.Builders;
 
 namespace ChatBackend;
 
@@ -10,7 +11,7 @@ public class OllamaRequest
     [JsonPropertyName("prompt")]
     public string? Prompt { get; set; }
     [JsonPropertyName("model")]
-    public string? Model { get; set; } = Environment.GetEnvironmentVariable("MODEL");
+    public string Model { get; set; } = "gpt-oss:20b";
     [JsonPropertyName("options")]
     public OllamaOptions Options { get; set; } = new();
     [JsonPropertyName("raw")]
@@ -46,6 +47,17 @@ public class OllamaResponse
 
 public static class Ollama
 {
+    static private GptOssChatBuilder history;
+
+    static Ollama()
+    {
+        var gopb = new GptOssPromptBuilder()
+            .WithSystemMessage("You are a large language model (LLM).")
+            .WithDeveloperInstructions("Fulfill the request to the best of your abilities")
+            .WithReasoningLevel(Models.GptOssReasoningLevel.Medium);
+        history = new GptOssChatBuilder().WithPrompt(gopb);
+    }
+
     public static ChannelReader<OllamaResponse> GetCompletion(string prompt)
     {
         var channel = Channel.CreateUnbounded<OllamaResponse>();
@@ -53,10 +65,12 @@ public static class Ollama
         {
             var client = new HttpClient();
             string url = Environment.GetEnvironmentVariable("OLLAMA_ENDPOINT") ?? throw new("OLLAMA_ENDPOINT was null");
+
+            history.Append(new(Models.GptOssRole.User, Models.GptOssChannel.None, prompt));
+
             var requestBody = new OllamaRequest
             {
-                Prompt = "<|start|>system<|message|>You are a large language model (LLM).\nKnowledge cutoff: 2024-06\nCurrent date: 2025-06-28\n\nReasoning: medium\n\n# Valid channels: analysis, commentary, final. Channel must be included for every message.\nCalls to these tools must go to the commentary channel: 'functions'.<|end|><|start|>developer<|message|># Instructions\n\nFulfill the request to the best of your abilities\n\n<|end|><|start|>user<|message|>" + prompt + "<|end|><|start|>assistant",
-                //Ex tool string: (Inject directly after instructions in developer channel) "# Tools\n\n## functions\n\nnamespace functions {\n\n// Gets the location of the user.\ntype get_location = () => any;\n\n// Gets the current weather in the provided location.\ntype get_current_weather = (_: {\n// The city and state, e.g. San Francisco, CA\nlocation: string,\nformat?: \"celsius\" | \"fahrenheit\", // default: celsius\n}) => any;\n\n// Gets the current weather in the provided list of locations.\ntype get_multiple_weathers = (_: {\n// List of city and state, e.g. [\"San Francisco, CA\", \"New York, NY\"]\nlocations: string[],\nformat?: \"celsius\" | \"fahrenheit\", // default: celsius\n}) => any;\n\n} // namespace functions"
+                Prompt = history.WithAssistantTrail(),
                 Raw = true
             };
             var jsonRequest = JsonSerializer.Serialize(requestBody);
@@ -65,6 +79,7 @@ public static class Ollama
                 Content = new StringContent(jsonRequest, Encoding.UTF8, "application/json")
             };
 
+            StringBuilder responseBuilder = new();
             try
             {
                 using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
@@ -82,6 +97,7 @@ public static class Ollama
 
                     if (responseObject is not null)
                     {
+                        responseBuilder.Append(responseObject.Response);
                         await channel.Writer.WriteAsync(responseObject);
                     }
                 }
@@ -97,6 +113,7 @@ public static class Ollama
             {
                 channel.Writer.Complete();
             }
+            history.AppendRaw($"<|start|>assistant{responseBuilder}");
         });
 
         return channel.Reader;
