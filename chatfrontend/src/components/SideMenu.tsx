@@ -1,26 +1,14 @@
-import React, { useState } from 'react';
+import React from 'react';
 import SettingsIcon from '../icons/SettingsIcon';
-import SettingsMenu from './SettingsMenu';
 import './SideMenu.css';
 
 interface SideMenuProps {
   isOpen: boolean;
   onClose: () => void;
-  theme: string;
-  onThemeToggle: () => void;
+  onSettingsClick: () => void;
 }
 
-const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose, theme, onThemeToggle }) => {
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-
-  const openSettings = () => {
-    setIsSettingsOpen(true);
-  };
-
-  const closeSettings = () => {
-    setIsSettingsOpen(false);
-  };
-
+const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose, onSettingsClick }) => {
   return (
     <>
       <div className={`side-menu-overlay ${isOpen ? 'open' : ''}`} onClick={onClose}></div>
@@ -29,18 +17,12 @@ const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose, theme, onThemeTogg
           {/* Placeholder for future menu items */}
         </div>
         <div className="side-menu-footer">
-          <button className="settings-button" onClick={openSettings}>
+          <button className="settings-button" onClick={onSettingsClick}>
             <SettingsIcon color="var(--color-text-main)" />
             <span className="settings-text">Settings</span>
           </button>
         </div>
       </div>
-      <SettingsMenu 
-        isOpen={isSettingsOpen} 
-        onClose={closeSettings} 
-        theme={theme} 
-        onThemeToggle={onThemeToggle} 
-      />
     </>
   );
 };

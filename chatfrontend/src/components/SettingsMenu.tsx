@@ -1,15 +1,16 @@
 import React from 'react';
 import ThemeToggler from './ThemeToggler';
 import './SettingsMenu.css';
+import { useTheme } from '../context/ThemeContext';
 
 interface SettingsMenuProps {
-  theme: string;
-  onThemeToggle: () => void;
   onClose: () => void;
   isOpen: boolean;
 }
 
-const SettingsMenu: React.FC<SettingsMenuProps> = ({ theme, onThemeToggle, onClose, isOpen }) => {
+const SettingsMenu: React.FC<SettingsMenuProps> = ({ onClose, isOpen }) => {
+  const { theme, toggleTheme } = useTheme();
+
   return (
     <div className={`settings-menu-overlay ${isOpen ? 'open' : ''}`} onClick={onClose}>
         <div className={`settings-menu`} onClick={(e) => e.stopPropagation()}>
@@ -18,7 +19,7 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({ theme, onThemeToggle, onClo
                 <button onClick={onClose} className="close-button">&times;</button>
             </div>
             <div className="settings-menu-content">
-                <ThemeToggler theme={theme} onToggle={onThemeToggle} />
+                <ThemeToggler theme={theme} onToggle={toggleTheme} />
             </div>
         </div>
     </div>
