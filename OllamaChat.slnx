@@ -1,5 +1,3 @@
 <Solution>
 	<Project Path="ChatBackend/ChatBackend.csproj" />
-	<Project Path="ChatFrontend/ChatFrontend/ChatFrontend.csproj" />
-	<Project Path="ChatFrontend/ChatFrontend.Browser/ChatFrontend.Browser.csproj" />
 </Solution>

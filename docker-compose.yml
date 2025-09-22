@@ -21,6 +21,12 @@ services:
     environment:
       - OLLAMA_ENDPOINT=http://ollama:11434/api/generate #Docker hosted endpoint
       #- OLLAMA_ENDPOINT=http://host.docker.internal:11434/api/generate #Locally hosted endpoint
+
+      #Model Parameters
+      - MODEL=gpt-oss:20b
+      #- TEMPERATURE=0.7
+      #- TOP_K=30
+
     networks:
       - main
     #Uncomment if running ollama locally
