@@ -11,9 +11,8 @@ interface SettingsMenuProps {
 
 const SettingsMenu: React.FC<SettingsMenuProps> = ({ theme, onThemeToggle, onClose, isOpen }) => {
   return (
-    <>
-        <div className={`settings-menu-overlay ${isOpen ? 'open' : ''}`} onClick={onClose}></div>
-        <div className={`settings-menu ${isOpen ? 'open' : ''}`}>
+    <div className={`settings-menu-overlay ${isOpen ? 'open' : ''}`} onClick={onClose}>
+        <div className={`settings-menu`} onClick={(e) => e.stopPropagation()}>
             <div className="settings-menu-header">
                 <h2>Settings</h2>
                 <button onClick={onClose} className="close-button">&times;</button>
@@ -22,7 +21,7 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({ theme, onThemeToggle, onClo
                 <ThemeToggler theme={theme} onToggle={onThemeToggle} />
             </div>
         </div>
-    </>
+    </div>
   );
 };
 
