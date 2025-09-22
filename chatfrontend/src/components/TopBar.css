@@ -2,7 +2,7 @@
   display: flex;
   align-items: center;
   height: 25px;
-  padding: 10px 0px 8px;
+  padding: 10px 0px 7px;
   background-color: var(--color-app-bg);
   border-bottom: 1px solid var(--color-border);
   flex-shrink: 0; /* Prevent top bar from shrinking */
