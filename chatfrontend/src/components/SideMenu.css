@@ -94,6 +94,7 @@
 
   .side-menu.open {
     width: 300px;
+    flex-shrink: 0;
   }
 
   .side-menu-overlay {
