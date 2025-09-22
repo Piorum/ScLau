@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './App.css';
 import './ChatMessage.css';
 import './ChatHistory.css';
@@ -11,6 +11,28 @@ function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [theme, setTheme] = useState('dark');
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (savedTheme) {
+      setTheme(savedTheme);
+    } else if (prefersDark) {
+      setTheme('dark');
+    } else {
+      setTheme('light');
+    }
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prevTheme => prevTheme === 'light' ? 'dark' : 'light');
+  };
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -124,7 +146,7 @@ function App() {
 
   return (
     <div className="App">
-      <SideMenu isOpen={isMenuOpen} onClose={closeMenu} />
+      <SideMenu isOpen={isMenuOpen} onClose={closeMenu} theme={theme} onThemeToggle={toggleTheme} />
       <div className="main-content-wrapper">
         <TopBar onMenuToggle={toggleMenu} />
         <div className="chat-area-wrapper">

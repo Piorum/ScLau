@@ -1,13 +1,47 @@
 :root {
-  --color-darkest-bg: #191919;
-  --color-app-bg: #1a1a1a;
-  --color-component-bg: #1f1f1f;
-  --color-border: #2a2a2a;
-  --color-text-main: #e0e0e0;
-  --color-text-highlight: #e2e2e5;
-  --color-text-disabled: #757575;
-  --color-text-reasoning: #a0a0a0;
+  --color-primary: #2196F3;
+
+  --light-darkest-bg: #f0f0f0;
+  --light-app-bg: #fafafa;
+  --light-component-bg: #ffffff;
+  --light-border: #d4d4d4;
+  --light-text-main: #333333;
+  --light-text-highlight: #000000;
+  --light-text-disabled: #9e9e9e;
+  --light-text-reasoning: #666666;
+
+  --dark-darkest-bg: #191919;
+  --dark-app-bg: #1a1a1a;
+  --dark-component-bg: #1f1f1f;
+  --dark-border: #2a2a2a;
+  --dark-text-main: #e0e0e0;
+  --dark-text-highlight: #e2e2e5;
+  --dark-text-disabled: #757575;
+  --dark-text-reasoning: #a0a0a0;
 }
+
+[data-theme='light'] {
+  --color-darkest-bg: var(--light-darkest-bg);
+  --color-app-bg: var(--light-app-bg);
+  --color-component-bg: var(--light-component-bg);
+  --color-border: var(--light-border);
+  --color-text-main: var(--light-text-main);
+  --color-text-highlight: var(--light-text-highlight);
+  --color-text-disabled: var(--light-text-disabled);
+  --color-text-reasoning: var(--light-text-reasoning);
+}
+
+[data-theme='dark'] {
+  --color-darkest-bg: var(--dark-darkest-bg);
+  --color-app-bg: var(--dark-app-bg);
+  --color-component-bg: var(--dark-component-bg);
+  --color-border: var(--dark-border);
+  --color-text-main: var(--dark-text-main);
+  --color-text-highlight: var(--dark-text-highlight);
+  --color-text-disabled: var(--dark-text-disabled);
+  --color-text-reasoning: var(--dark-text-reasoning);
+}
+
 
 /* General body styling for the dark theme */
 body {
@@ -18,6 +52,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--color-darkest-bg);
+  transition: background-color 0.3s ease;
 }
 
 /* Main App container using flexbox for layout */
@@ -27,6 +62,7 @@ body {
   background-color: var(--color-app-bg);
   color: var(--color-text-main);
   overflow: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .main-content-wrapper {
@@ -62,7 +98,7 @@ input[type="text"] {
   background-color: var(--color-component-bg);
   color: var(--color-text-highlight);
   outline: none;
-  transition: border-color 0.3s ease;
+  transition: border-color 0.3s ease, background-color 0.3s ease, color 0.3s ease;
 }
 
 input[type="text"]:focus {
@@ -78,7 +114,7 @@ button {
   border-radius: 15px;
   font-size: 1rem;
   cursor: pointer;
-  transition: color 0.3s ease, border-color 0.3s ease;
+  transition: color 0.3s ease, border-color 0.3s ease, background-color 0.3s ease;
 }
 
 button:hover {
