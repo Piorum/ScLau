@@ -13,6 +13,12 @@
   border: none;
   cursor: pointer;
   padding: 10px;
+  border-radius: 50%;
+}
+
+.menu-toggle-button:focus {
+  outline: none;
+  box-shadow: none;
 }
 
 .top-bar-title {
