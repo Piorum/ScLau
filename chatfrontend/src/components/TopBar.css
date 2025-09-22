@@ -1,0 +1,22 @@
+.top-bar {
+  display: flex;
+  align-items: center;
+  height: 25px;
+  padding: 10px 0px 8px;
+  background-color: var(--color-app-bg);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0; /* Prevent top bar from shrinking */
+}
+
+.menu-toggle-button {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 10px;
+}
+
+.top-bar-title {
+  font-size: 1.2rem;
+  margin: 0;
+  padding-left: 16px;
+}

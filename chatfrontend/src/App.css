@@ -23,10 +23,24 @@ body {
 /* Main App container using flexbox for layout */
 .App {
   display: flex;
-  flex-direction: column;
   height: 100dvh;
   background-color: var(--color-app-bg);
   color: var(--color-text-main);
+  overflow: hidden;
+}
+
+.main-content-wrapper {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.chat-area-wrapper {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
 }
 
 

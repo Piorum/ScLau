@@ -4,10 +4,21 @@ import './ChatMessage.css';
 import './ChatHistory.css';
 import ChatHistory from './ChatHistory';
 import { Message } from './ChatMessage';
+import TopBar from './components/TopBar';
+import SideMenu from './components/SideMenu';
 
 function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  const toggleMenu = () => {
+    setIsMenuOpen(!isMenuOpen);
+  };
+
+  const closeMenu = () => {
+    setIsMenuOpen(false);
+  };
 
   const fetchData = async () => {
     if (!inputValue.trim()) return;
@@ -113,16 +124,22 @@ function App() {
 
   return (
     <div className="App">
-      <ChatHistory messages={messages} />
-      <div className="input-area">
-        <input
-          type="text"
-          value={inputValue}
-          onChange={handleInputChange}
-          onKeyPress={handleKeyPress}
-          placeholder="Type your message here..."
-        />
-        <button onClick={fetchData} disabled={!inputValue.trim()}>Send</button>
+      <SideMenu isOpen={isMenuOpen} onClose={closeMenu} />
+      <div className="main-content-wrapper">
+        <TopBar onMenuToggle={toggleMenu} />
+        <div className="chat-area-wrapper">
+            <ChatHistory messages={messages} />
+            <div className="input-area">
+              <input
+                type="text"
+                value={inputValue}
+                onChange={handleInputChange}
+                onKeyPress={handleKeyPress}
+                placeholder="Type your message here..."
+              />
+              <button onClick={fetchData} disabled={!inputValue.trim()}>Send</button>
+            </div>
+        </div>
       </div>
     </div>
   );
