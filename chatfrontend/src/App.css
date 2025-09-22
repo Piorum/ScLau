@@ -1,3 +1,14 @@
+:root {
+  --color-darkest-bg: #191919;
+  --color-app-bg: #1a1a1a;
+  --color-component-bg: #1f1f1f;
+  --color-border: #2a2a2a;
+  --color-text-main: #e0e0e0;
+  --color-text-highlight: #e2e2e5;
+  --color-text-disabled: #757575;
+  --color-text-reasoning: #a0a0a0;
+}
+
 /* General body styling for the dark theme */
 body {
   margin: 0;
@@ -6,7 +17,7 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #191919;
+  background-color: var(--color-darkest-bg);
 }
 
 /* Main App container using flexbox for layout */
@@ -14,8 +25,8 @@ body {
   display: flex;
   flex-direction: column;
   height: 100dvh;
-  background-color: #1a1a1a;
-  color: #e0e0e0;
+  background-color: var(--color-app-bg);
+  color: var(--color-text-main);
 }
 
 
@@ -33,31 +44,40 @@ input[type="text"] {
   padding: 12px 15px;
   font-size: 1rem;
   border-radius: 15px;
-  border: 1px solid #2a2a2a;
-  background-color: #1f1f1f;
-  color: #e2e2e5;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-component-bg);
+  color: var(--color-text-highlight);
   outline: none;
   transition: border-color 0.3s ease;
 }
 
 input[type="text"]:focus {
-  border-color: #e2e2e5;
+  border-color: var(--color-text-highlight);
 }
 
 /* Updated button styling for the dark theme */
 button {
-  background-color: #1f1f1f;
-  color: #757575;
-  border: 1px solid #2a2a2a;
+  background-color: var(--color-component-bg);
+  color: var(--color-text-highlight);
+  border: 1px solid var(--color-border);
   padding: 12px 25px;
   border-radius: 15px;
   font-size: 1rem;
   cursor: pointer;
-  transition: color 0.3s ease;
-  transition: border-color 0.3s ease;
+  transition: color 0.3s ease, border-color 0.3s ease;
 }
 
 button:hover {
-  color: #e2e2e5;
-  border-color: #e2e2e5;
+  color: var(--color-text-highlight);
+  border-color: var(--color-text-highlight);
+}
+
+button:disabled {
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
+button:disabled:hover {
+  border-color: var(--color-border);
+  color: var(--color-text-disabled);
 }

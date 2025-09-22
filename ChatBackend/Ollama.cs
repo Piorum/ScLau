@@ -47,7 +47,7 @@ public class OllamaResponse
 
 public static class Ollama
 {
-    static private GptOssChatBuilder history;
+    private static readonly GptOssChatBuilder history;
 
     static Ollama()
     {

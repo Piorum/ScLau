@@ -5,10 +5,10 @@
   padding: 10px;
   display: flex;
   flex-direction: column;
-  background-color: #1f1f1f;
+  background-color: var(--color-component-bg);
   border-radius: 15px;
   margin: 10px 10px 0px;
-  border: 1px solid #2a2a2a;
+  border: 1px solid var(--color-border);
 }
 
 /* Stlying for most browsers */

@@ -122,7 +122,7 @@ function App() {
           onKeyPress={handleKeyPress}
           placeholder="Type your message here..."
         />
-        <button onClick={fetchData}>Send</button>
+        <button onClick={fetchData} disabled={!inputValue.trim()}>Send</button>
       </div>
     </div>
   );
