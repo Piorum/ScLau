@@ -1,4 +1,4 @@
-namespace ChatBackend.Models;
+namespace ChatBackend.Models.GptOss;
 
 public enum GptOssReasoningLevel
 {

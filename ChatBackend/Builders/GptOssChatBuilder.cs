@@ -1,6 +1,6 @@
 using System;
 using System.Text;
-using ChatBackend.Models;
+using ChatBackend.Models.GptOss;
 
 namespace ChatBackend.Builders;
 
