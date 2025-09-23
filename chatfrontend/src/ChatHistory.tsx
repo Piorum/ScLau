@@ -35,10 +35,10 @@ const ChatHistory: React.FC<ChatHistoryProps> = ({ messages }) => {
   return (
     <div className="chat-history" ref={chatContainerRef} onScroll={handleScroll}>
       <div style={{ flexGrow: 1 }}></div>
-      {messages.map((message) => (
-        <ChatMessage key={message.id} message={message} />
-      ))}
-      <div ref={chatEndRef} />
+      {messages.map((message, index) => {
+        const isLoading = message.sender === 'ai-reasoning' && index === messages.length - 1;
+        return <ChatMessage key={message.id} message={{...message, isLoading}} />;
+      })}
     </div>
   );
 };

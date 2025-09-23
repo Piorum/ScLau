@@ -1,0 +1,38 @@
+.collapsible-message {
+  border: 1px solid var(--color-border);
+  border-radius: 15px;
+  background-color: var(--color-component-bg);
+  margin-bottom: 5px;
+  max-width: 80%;
+  word-wrap: break-word;
+}
+
+.collapsible-header {
+  display: flex;
+  align-items: center;
+  padding: 10px 20px;
+  cursor: pointer;
+}
+
+.collapsible-content {
+  padding: 0 20px 10px;
+  display: none;
+}
+
+.collapsible-message.expanded .collapsible-content {
+  display: block;
+}
+
+.arrow {
+  border: solid var(--color-text-main);
+  border-width: 0 2px 2px 0;
+  display: inline-block;
+  padding: 3px;
+  margin-right: 10px;
+  transform: rotate(45deg);
+  transition: transform 0.2s;
+}
+
+.collapsible-message.expanded .arrow {
+  transform: rotate(-135deg);
+}
