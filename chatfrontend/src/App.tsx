@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import './App.css';
 import './ChatMessage.css';
 import './ChatHistory.css';
@@ -13,6 +13,15 @@ function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { messages, sendMessage, deleteMessage, editMessage } = useChat();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-resize textarea height
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+    }
+  }, [inputValue]);
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -31,17 +40,21 @@ function App() {
   };
 
   const handleSendMessage = () => {
+    if (!inputValue.trim()) return;
     sendMessage(inputValue);
     setInputValue('');
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInputValue(e.target.value);
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault(); // Prevent default newline
       handleSendMessage();
+    } else if (e.key === 'Enter' && e.shiftKey) {
+      // Allow default newline behavior for Shift+Enter
     }
   };
 
@@ -54,12 +67,13 @@ function App() {
         <div className="chat-area-wrapper">
             <ChatHistory messages={messages} deleteMessage={deleteMessage} editMessage={editMessage} />
             <div className="input-area">
-              <input
-                type="text"
+              <textarea
+                ref={textareaRef}
                 value={inputValue}
                 onChange={handleInputChange}
-                onKeyPress={handleKeyPress}
+                onKeyDown={handleKeyDown}
                 placeholder="Type your message here..."
+                rows={1}
               />
               <button onClick={handleSendMessage} disabled={!inputValue.trim()}>Send</button>
             </div>
