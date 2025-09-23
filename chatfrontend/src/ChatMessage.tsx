@@ -20,7 +20,6 @@ interface ChatMessageProps {
 }
 
 const ChatMessage: React.FC<ChatMessageProps> = ({ message, deleteMessage, editMessage }) => {
-  console.log(`Message ID: ${message.id}, isStreaming: ${message.isStreaming}`);
   const [isEditing, setIsEditing] = useState(false);
   const [editedText, setEditedText] = useState(message.text);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -88,13 +87,10 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, deleteMessage, editM
     return (
       <div className={`chat-message-wrapper ${message.sender}`}>
         <CollapsibleMessage 
-          title="Reasoning" 
-          isStreaming={!!message.isStreaming} 
-          onEdit={handleEdit} 
-          onDelete={handleDelete}
-        >
-          <ReactMarkdown>{message.text}</ReactMarkdown>
-        </CollapsibleMessage>
+          message={message}
+          onEdit={editMessage}
+          onDelete={deleteMessage}
+        />
       </div>
     );
   }
