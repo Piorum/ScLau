@@ -1,6 +1,6 @@
 .loading-icon {
   border: 2px solid var(--color-border);
-  border-top: 2px solid var(--color-primary);
+  border-top: 2px solid var(--color-text-main);
   border-radius: 50%;
   width: 16px;
   height: 16px;

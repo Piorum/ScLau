@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useLayoutEffect, useRef } from 'react';
 import ChatMessage, { Message } from './ChatMessage';
 import './ChatHistory.css';
 
@@ -7,33 +7,42 @@ interface ChatHistoryProps {
 }
 
 const ChatHistory: React.FC<ChatHistoryProps> = ({ messages }) => {
-  const chatEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
-  const shouldScrollRef = useRef(true);
+  const userScrolled = useRef(false);
 
-  useEffect(() => {
-    if (shouldScrollRef.current) {
-      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages]);
-
-  const handleScroll = () => {
-    const container = chatContainerRef.current;
-    if (container) {
-      const atBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 50;
-      shouldScrollRef.current = atBottom;
-    }
+  const handleWheel = () => {
+    userScrolled.current = true;
   };
-  
-  // When user sends a message, we should scroll.
-  useEffect(() => {
-      if (messages.length > 0 && messages[messages.length - 1].sender === 'user') {
-          shouldScrollRef.current = true;
+
+  useLayoutEffect(() => {
+    const container = chatContainerRef.current;
+    if (!container) return;
+
+    const lastMessage = messages[messages.length - 1];
+    if (!lastMessage) return;
+
+    const isUserMessage = lastMessage.sender === 'user';
+
+    if (isUserMessage) {
+      userScrolled.current = false;
+      container.scrollTop = container.scrollHeight;
+    } else {
+      if (!userScrolled.current) {
+        const lastElement = container.lastElementChild as HTMLElement;
+        if (lastElement) {
+          lastElement.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        }
       }
+    }
   }, [messages]);
 
   return (
-    <div className="chat-history" ref={chatContainerRef} onScroll={handleScroll}>
+    <div 
+      className="chat-history" 
+      ref={chatContainerRef} 
+      onWheel={handleWheel}
+      onTouchStart={handleWheel}
+    >
       <div style={{ flexGrow: 1 }}></div>
       {messages.map((message, index) => {
         const isLoading = message.sender === 'ai-reasoning' && index === messages.length - 1;
