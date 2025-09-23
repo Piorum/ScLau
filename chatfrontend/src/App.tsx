@@ -72,7 +72,7 @@ function App() {
                 value={inputValue}
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
-                placeholder="Type your message here..."
+                placeholder="Message gpt-oss:20b"
                 rows={1}
               />
               <button onClick={handleSendMessage} disabled={!inputValue.trim()}>Send</button>

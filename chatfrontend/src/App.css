@@ -1,4 +1,5 @@
 :root {
+  --color-accent: var(--color-text-highlight);
   --color-destructive: #ff414a;
 
   --light-darkest-bg: #f0f0f0;
@@ -85,26 +86,30 @@ body {
 /* Styling for the bottom input area */
 .input-area {
   display: flex;
-  padding: 10px;
-  gap: 10px; /* Adds space between the input and the button */
+  padding: 2px;
+  gap: 0; /* Removed gap, as button will be absolute */
+  border-radius: 15px;
+  background-color: var(--color-component-bg);
+  border: 1px solid var(--color-border);
+  position: relative; /* For absolute positioning of the button */
+  margin: 10px; /* Add some margin around the input area */
 }
 
-/* Styling for the text input */
 textarea {
   flex-grow: 1;
-  padding: 8px 15px; /* Adjusted padding */
+  padding: 8px 60px 8px 15px; /* Adjusted padding-right for button */
   font-size: 1rem;
-  line-height: 1.2; /* Explicit line height */
-  border-radius: 15px;
-  border: 1px solid var(--color-border);
-  background-color: var(--color-component-bg);
+  line-height: 1.2;
+  border-radius: 0; /* Removed individual border-radius */
+  border: none; /* Removed individual border */
+  background: none; /* Transparent background */
   color: var(--color-text-highlight);
   outline: none;
   transition: border-color 0.3s ease, background-color 0.3s ease, color 0.3s ease;
   resize: none;
   overflow-y: hidden;
-  min-height: 32px; /* Adjusted min-height */
-  box-sizing: border-box; /* Ensure padding is included in height */
+  min-height: 32px;
+  box-sizing: border-box;
 }
 
 textarea:focus {
@@ -112,29 +117,33 @@ textarea:focus {
 }
 
 /* Updated button styling for the dark theme */
-button {
-  background-color: var(--color-component-bg);
+.input-area button {
+  position: absolute;
+  bottom: 5px;
+  right: 5px;
+  padding: 6px 15px; /* Smaller size */
+  font-size: 0.9rem;
+  border-radius: 13px; /* Smaller border-radius */
+  background-color: transparent;
   color: var(--color-text-highlight);
-  border: 1px solid var(--color-border);
-  padding: 12px 25px;
-  border-radius: 15px;
-  font-size: 1rem;
+  border: none;
+  border-color: var(--color-border);
   cursor: pointer;
   transition: color 0.3s ease, border-color 0.3s ease, background-color 0.3s ease;
-  align-self: center; /* Prevent button from stretching */
+  align-self: flex-end; /* Prevent button from stretching */
 }
 
-button:hover {
+.input-area button:hover {
   color: var(--color-text-highlight);
   border-color: var(--color-text-highlight);
 }
 
-button:disabled {
+.input-area button:disabled {
   color: var(--color-text-disabled);
   cursor: not-allowed;
 }
 
-button:disabled:hover {
+.input-area button:disabled:hover {
   border-color: var(--color-border);
   color: var(--color-text-disabled);
 }
