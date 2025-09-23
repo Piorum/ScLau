@@ -6,12 +6,12 @@ import './CollapsibleMessage.css';
 interface CollapsibleMessageProps {
   title: string;
   children: React.ReactNode;
-  isLoading: boolean;
+  isStreaming: boolean;
   onEdit: () => void;
   onDelete: () => void;
 }
 
-const CollapsibleMessage: React.FC<CollapsibleMessageProps> = ({ title, children, isLoading, onEdit, onDelete }) => {
+const CollapsibleMessage: React.FC<CollapsibleMessageProps> = ({ title, children, isStreaming, onEdit, onDelete }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const toggleExpand = () => {
@@ -23,14 +23,13 @@ const CollapsibleMessage: React.FC<CollapsibleMessageProps> = ({ title, children
       <div className="collapsible-header" onClick={toggleExpand}>
         <div className="arrow"></div>
         <span>{title}</span>
-        {isLoading && <LoadingIcon />}
+        {isStreaming && <LoadingIcon />} 
       </div>
       <div className="collapsible-content">
         {children}
       </div>
-      <MessageActions onEdit={onEdit} onDelete={onDelete} />
+      {isExpanded && !isStreaming && <MessageActions onEdit={onEdit} onDelete={onDelete} />}
     </div>
   );
 };
-
 export default CollapsibleMessage;

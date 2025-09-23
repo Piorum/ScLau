@@ -47,8 +47,7 @@ const ChatHistory: React.FC<ChatHistoryProps> = ({ messages, deleteMessage, edit
     >
       <div style={{ flexGrow: 1 }}></div>
       {messages.map((message, index) => {
-        const isLoading = message.sender === 'ai-reasoning' && index === messages.length - 1;
-        return <ChatMessage key={message.id} message={{...message, isLoading}} deleteMessage={deleteMessage} editMessage={editMessage} />;
+        return <ChatMessage key={message.id} message={{...message}} deleteMessage={deleteMessage} editMessage={editMessage} />;
       })}
     </div>
   );

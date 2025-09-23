@@ -21,6 +21,7 @@ export const useChat = () => {
         id: reasoningId,
         text: 'Thinking...',
         sender: 'ai-reasoning',
+        isStreaming: true,
       };
       setMessages(prev => [...prev, reasoningMessage]);
 
@@ -50,6 +51,9 @@ export const useChat = () => {
             const read = async () => {
               const { done, value } = await reader.read();
               if (done) {
+                setMessages(prevMessages => prevMessages.map(m =>
+                  m.id === currentMessageId ? { ...m, isStreaming: false } : m
+                ));
                 return;
               }
               buffer += decoder.decode(value, { stream: true });
@@ -62,6 +66,12 @@ export const useChat = () => {
 
                   if (response) {
                     if (channel !== currentChannel) {
+                      if (currentMessageId) {
+                        setMessages(prevMessages => prevMessages.map(m =>
+                          m.id === currentMessageId ? { ...m, isStreaming: false } : m
+                        ));
+                      }
+
                       currentChannel = channel;
                       currentMessageId = (Date.now() + Math.random()).toString();
                       const sender = (channel === 'final') ? 'ai-answer' : 'ai-reasoning';
@@ -69,13 +79,13 @@ export const useChat = () => {
                         id: currentMessageId,
                         text: response,
                         sender: sender,
+                        isStreaming: true,
                       };
                       setMessages(prevMessages => [...prevMessages, newMessage]);
                     } else {
                       setMessages(prevMessages => prevMessages.map(m =>
                         m.id === currentMessageId
-                          ? { ...m, text: m.text + response }
-                          : m
+                          ? { ...m, text: m.text + response } : m
                       ));
                     }
                   }
@@ -92,6 +102,7 @@ export const useChat = () => {
             id: (Date.now() + 3).toString(),
             text: `Error: ${error instanceof Error ? error.message : String(error)}`,
             sender: 'ai-reasoning',
+            isStreaming: false,
           };
           setMessages(prevMessages => [...prevMessages.filter(m => m.id !== reasoningId), errorMessage]);
         }

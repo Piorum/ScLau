@@ -10,7 +10,7 @@ export interface Message {
   id: string;
   text: string;
   sender: Sender;
-  isLoading?: boolean;
+  isStreaming?: boolean;
 }
 
 interface ChatMessageProps {
@@ -20,9 +20,16 @@ interface ChatMessageProps {
 }
 
 const ChatMessage: React.FC<ChatMessageProps> = ({ message, deleteMessage, editMessage }) => {
+  console.log(`Message ID: ${message.id}, isStreaming: ${message.isStreaming}`);
   const [isEditing, setIsEditing] = useState(false);
   const [editedText, setEditedText] = useState(message.text);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (!isEditing) {
+      setEditedText(message.text);
+    }
+  }, [message.text, isEditing]);
 
   useEffect(() => {
     if (isEditing && textareaRef.current) {
@@ -61,7 +68,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, deleteMessage, editM
   if (isEditing) {
     return (
       <div className={`chat-message-wrapper ${message.sender}`}>
-        <div className={`chat-message ${message.sender}`}>
+        <div className={`chat-message ${message.sender} editing`}>
           <textarea 
             ref={textareaRef}
             value={editedText} 
@@ -82,7 +89,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, deleteMessage, editM
       <div className={`chat-message-wrapper ${message.sender}`}>
         <CollapsibleMessage 
           title="Reasoning" 
-          isLoading={!!message.isLoading} 
+          isStreaming={!!message.isStreaming} 
           onEdit={handleEdit} 
           onDelete={handleDelete}
         >
@@ -95,7 +102,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, deleteMessage, editM
   return (
     <div className={`chat-message-wrapper ${message.sender}`}>
       <div className={`chat-message ${message.sender}`}>
-        <MessageActions onEdit={handleEdit} onDelete={handleDelete} />
+        {!message.isStreaming && <MessageActions onEdit={handleEdit} onDelete={handleDelete} />}
         <ReactMarkdown>{message.text}</ReactMarkdown>
       </div>
     </div>
