@@ -28,9 +28,8 @@
 }
 
 .chat-message.ai-reasoning {
-  background-color: var(--color-border);
+  background-color: var(--color-component-bg);
   color: var(--color-text-reasoning);
-  font-style: italic;
 }
 
 .chat-message.ai-answer {

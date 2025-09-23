@@ -8,7 +8,7 @@ public class OllamaResponse
     [JsonPropertyName("response")]
     public string? Response { get; set; }
     [JsonPropertyName("channel")]
-    public GptOssChannel Channel { get; set; } = GptOssChannel.None;
+    public string Channel { get; set; } = GptOssChannel.None.ToString();
     [JsonPropertyName("done")]
     public bool Done { get; set; }
 }

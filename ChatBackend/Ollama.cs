@@ -91,7 +91,7 @@ public static class Ollama
                         {
                             responseBuilder.Append(responseObject.Response);
 
-                            responseObject.Channel = currentChannel;
+                            responseObject.Channel = currentChannel.ToString();
 
                             if (currentChannel != GptOssChannel.Final)
                                 responseObject.Done = false;
@@ -147,7 +147,7 @@ public static class Ollama
 
                     //run tool call
                     history.Append(new(GptOssRole.System, GptOssChannel.Commentary, "Response terminated unexpectedly."));
-                    await channel.Writer.WriteAsync(new OllamaResponse { Response = "\n\nError: Response terminated unexpectedly.\n\n", Done = false, Channel = currentChannel });
+                    await channel.Writer.WriteAsync(new OllamaResponse { Response = "\n\nError: Response terminated unexpectedly.\n\n", Done = false, Channel = currentChannel.ToString() });
 
                     GetCompletion(null, channel);
                 }

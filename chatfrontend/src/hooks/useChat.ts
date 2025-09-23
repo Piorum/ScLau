@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Message } from '../ChatMessage';
+import { ApiStreamParser } from '../utils/apiStreamParser';
 
 export const useChat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -39,19 +40,13 @@ export const useChat = () => {
       // Remove "Thinking..." message
       setMessages(prevMessages => prevMessages.filter(m => m.id !== reasoningId));
 
-      const aiAnswerId = (Date.now() + 2).toString();
-      const aiAnswerMessage: Message = {
-        id: aiAnswerId,
-        text: '',
-        sender: 'ai-answer',
-      };
-      setMessages(prevMessages => [...prevMessages, aiAnswerMessage]);
-
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
 
       if (reader) {
         let buffer = '';
+        let currentChannel: string | null = null;
+        let currentMessageId: string | null = null;
         const read = async () => {
           const { done, value } = await reader.read();
           if (done) {
@@ -62,17 +57,27 @@ export const useChat = () => {
 
           lines.slice(0, -1).forEach(line => {
             if (line) {
-              try {
-                const parsed = JSON.parse(line);
-                if (parsed.response) {
+              const parser = new ApiStreamParser(line);
+              const { response, channel } = parser.getData();
+
+              if (response) {
+                if (channel !== currentChannel) {
+                  currentChannel = channel;
+                  currentMessageId = (Date.now() + Math.random()).toString();
+                  const sender = (channel === 'final') ? 'ai-answer' : 'ai-reasoning';
+                  const newMessage: Message = {
+                    id: currentMessageId,
+                    text: response,
+                    sender: sender,
+                  };
+                  setMessages(prevMessages => [...prevMessages, newMessage]);
+                } else {
                   setMessages(prevMessages => prevMessages.map(m =>
-                    m.id === aiAnswerId
-                      ? { ...m, text: m.text + parsed.response }
+                    m.id === currentMessageId
+                      ? { ...m, text: m.text + response }
                       : m
                   ));
                 }
-              } catch (e) {
-                console.error('Error parsing JSON:', e, 'Line:', line);
               }
             }
           });
