@@ -62,7 +62,6 @@ public static class Ollama
                 while (!reader.EndOfStream)
                 {
                     var line = await reader.ReadLineAsync();
-                    await Console.Out.WriteLineAsync(line);
                     if (string.IsNullOrWhiteSpace(line)) continue;
 
                     var responseObject = JsonSerializer.Deserialize<OllamaResponse>(line);

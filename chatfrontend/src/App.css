@@ -1,4 +1,9 @@
+html, body, * {
+  font-family: "monospace" !important;
+}
+
 :root {
+
   --color-accent: var(--color-text-highlight);
   --color-destructive: #ff414a;
 
@@ -47,9 +52,6 @@
 /* General body styling for the dark theme */
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--color-darkest-bg);
