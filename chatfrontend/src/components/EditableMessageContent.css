@@ -5,14 +5,20 @@
 .editable-message-content .edit-textarea {
   width: 100%;
   background: none;
-  border: none;
+  border: 1px solid var(--color-border); /* Added border */
+  border-radius: 5px; /* Added border-radius for consistency */
   color: var(--color-text-highlight);
   font-family: inherit;
   font-size: inherit;
   resize: none;
   overflow: hidden;
-  padding: 0;
+  padding: 5px;
   margin: 0;
+}
+
+.editable-message-content .edit-textarea:focus {
+  outline: none; /* Removed blue outline */
+  border-color: var(--color-text-highlight); /* Themed border on focus */
 }
 
 .editable-message-content .edit-actions {
@@ -22,15 +28,27 @@
 }
 
 .editable-message-content .edit-actions button {
-  background-color: var(--color-primary);
-  color: white;
-  border: none;
+  background-color: var(--color-component-bg); /* Monochrome background */
+  color: var(--color-text-highlight); /* Monochrome text */
+  border: 1px solid var(--color-border); /* Added border */
   padding: 6px 12px;
   border-radius: 5px;
   cursor: pointer;
+  transition: color 0.3s ease, border-color 0.3s ease, background-color 0.3s ease;
+}
+
+.editable-message-content .edit-actions button:hover {
+  color: var(--color-text-highlight);
+  border-color: var(--color-text-highlight);
 }
 
 .editable-message-content .edit-actions button:last-child {
-  background-color: var(--color-border);
-  color: var(--color-text-main);
+  background-color: var(--color-component-bg); /* Monochrome background */
+  color: var(--color-text-main); /* Subdued text color */
+  border: 1px solid var(--color-border); /* Added border */
+}
+
+.editable-message-content .edit-actions button:last-child:hover {
+  border-color: var(--color-destructive);
+  color: var(--color-destructive);
 }

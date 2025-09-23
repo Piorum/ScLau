@@ -26,6 +26,6 @@
   padding: 2px;
 }
 
-.message-actions button:hover {
-  color: var(--color-text-highlight);
+.message-actions button:nth-child(2):hover {
+  color: var(--color-destructive);
 }

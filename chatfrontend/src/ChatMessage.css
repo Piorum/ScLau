@@ -66,7 +66,6 @@
 }
 
 .edit-actions button {
-  background-color: var(--color-primary);
   color: white;
   border: none;
   padding: 6px 12px;
