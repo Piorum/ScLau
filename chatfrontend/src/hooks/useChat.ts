@@ -28,83 +28,80 @@ export const useChat = () => {
         text: 'Thinking...', 
         sender: 'ai-reasoning',
       };
-      setMessages(prev => [...prev, reasoningMessage]);
-      setActiveStreamingMessageId(reasoningId);
+          setMessages(prev => [...prev, reasoningMessage]);
+          setActiveStreamingMessageId(reasoningId);
 
-      const fetchAndStream = async () => {
-        try {
-          const response = await fetch('/api/data', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(inputValue),
-          });
-
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-
-          // Remove the initial 'Thinking...' message once the actual stream starts.
-          setMessages(prevMessages => prevMessages.filter(m => m.id !== reasoningId));
-
-          const reader = response.body?.getReader();
-          const decoder = new TextDecoder();
-
-          if (reader) {
-            let buffer = '';
-            let currentChannel: string | null = null;
-            // currentMessageIdForTextUpdate tracks the ID of the message whose text is currently being appended.
-            // This is distinct from activeStreamingMessageId, which tracks the message whose streaming status
-            // is active for UI purposes. This distinction is crucial when channels change mid-stream.
-            let currentMessageIdForTextUpdate: string | null = reasoningId;
-            
-            const read = async () => {
-              const { done, value } = await reader.read();
-              if (done) {
-                // When the entire stream ends, no message is actively streaming.
-                setActiveStreamingMessageId(null);
-                return;
-              }
-              buffer += decoder.decode(value, { stream: true });
-              const lines = buffer.split('\n');
-
-              lines.slice(0, -1).forEach(line => {
-                if (line) {
-                  const parser = new ApiStreamParser(line);
-                  const { response, channel } = parser.getData();
-
-                  if (response) {
-                    if (channel !== currentChannel) {
-                      // If the channel changes, the previous message is no longer actively streaming.
-                      // We update its isStreaming status to false.
-                      if (activeStreamingMessageId) { 
-                        setMessages(prevMessages => prevMessages.map(m =>
-                          m.id === activeStreamingMessageId ? { ...m, isStreaming: false } : m
-                        ));
-                      }
-
-                      currentChannel = channel;
-                      const newAiMessageId = (Date.now() + Math.random()).toString();
-                      currentMessageIdForTextUpdate = newAiMessageId; // Update for text appending
-                      const sender = (channel === 'final') ? 'ai-answer' : 'ai-reasoning';
-                      const newMessage: Message = {
-                        id: newAiMessageId,
-                        text: response,
-                        sender: sender,
-                      };
-                      setMessages(prevMessages => [...prevMessages, newMessage]);
-                      setActiveStreamingMessageId(newAiMessageId); // Set new active streaming message
-                    } else {
-                      // Append text to the message currently being built.
-                      setMessages(prevMessages => prevMessages.map(m =>
-                        m.id === currentMessageIdForTextUpdate 
-                          ? { ...m, text: m.text + response } : m
-                      ));
-                    }
-                  }
-                }
+          const fetchAndStream = async () => {
+            try {
+              const response = await fetch('/api/data', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(inputValue),
               });
+
+              if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+              }
+
+              const reader = response.body?.getReader();
+              const decoder = new TextDecoder();
+
+              if (reader) {
+                let buffer = '';
+                let currentChannel: string | null = null;
+                let currentMessageIdForTextUpdate: string | null = reasoningId;
+
+                const read = async () => {
+                  const { done, value } = await reader.read();
+                  if (done) {
+                    setActiveStreamingMessageId(null);
+                    return;
+                  }
+                  buffer += decoder.decode(value, { stream: true });
+                  const lines = buffer.split('\n');
+
+                  lines.slice(0, -1).forEach(line => {
+                    if (line) {
+                      const parser = new ApiStreamParser(line);
+                      const { response, channel } = parser.getData();
+
+                      if (response) {
+                        if (currentChannel === null) { // First chunk of AI response
+                          setMessages(prevMessages => prevMessages.map(m =>
+                            m.id === reasoningId ? { ...m, text: response } : m
+                          ));
+                          currentChannel = channel;
+                          setActiveStreamingMessageId(reasoningId); // Still streaming the reasoning message
+                        } else if (channel !== currentChannel) { // Channel has changed
+                          // Mark previous message as not streaming
+                          if (activeStreamingMessageId) {
+                            setMessages(prevMessages => prevMessages.map(m =>
+                              m.id === activeStreamingMessageId ? { ...m, isStreaming: false } : m
+                            ));
+                          }
+
+                          currentChannel = channel;
+                          const newAiMessageId = (Date.now() + Math.random()).toString();
+                          currentMessageIdForTextUpdate = newAiMessageId; // Update for text appending
+                          const sender = (channel === 'final') ? 'ai-answer' : 'ai-reasoning';
+                          const newMessage: Message = {
+                            id: newAiMessageId,
+                            text: response,
+                            sender: sender,
+                          };
+                          setMessages(prevMessages => [...prevMessages, newMessage]);
+                          setActiveStreamingMessageId(newAiMessageId);
+                        } else { // Same channel, append text
+                          setMessages(prevMessages => prevMessages.map(m =>
+                            m.id === currentMessageIdForTextUpdate
+                              ? { ...m, text: m.text + response } : m
+                          ));
+                        }
+                      }
+                    }
+                  });
 
               buffer = lines[lines.length - 1];
               read();
