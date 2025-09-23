@@ -4,6 +4,9 @@ import { ApiStreamParser } from '../utils/apiStreamParser';
 
 export const useChat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
+  // activeStreamingMessageId tracks the ID of the message that is currently streaming.
+  // This is used to derive the 'isStreaming' status for messages, which controls
+  // the visibility of loading indicators and context buttons.
   const [activeStreamingMessageId, setActiveStreamingMessageId] = useState<string | null>(null);
 
   const sendMessage = (inputValue: string) => {
@@ -16,6 +19,8 @@ export const useChat = () => {
     };
     setMessages(prevMessages => [...prevMessages, userMessage]);
 
+    // Use setTimeout to allow the UI to render the user's message and snap to bottom
+    // before the 'Thinking...' message appears and streaming begins.
     setTimeout(() => {
       const reasoningId = (Date.now() + 1).toString();
       const reasoningMessage: Message = {
@@ -40,6 +45,7 @@ export const useChat = () => {
             throw new Error(`HTTP error! status: ${response.status}`);
           }
 
+          // Remove the initial 'Thinking...' message once the actual stream starts.
           setMessages(prevMessages => prevMessages.filter(m => m.id !== reasoningId));
 
           const reader = response.body?.getReader();
@@ -48,11 +54,15 @@ export const useChat = () => {
           if (reader) {
             let buffer = '';
             let currentChannel: string | null = null;
+            // currentMessageIdForTextUpdate tracks the ID of the message whose text is currently being appended.
+            // This is distinct from activeStreamingMessageId, which tracks the message whose streaming status
+            // is active for UI purposes. This distinction is crucial when channels change mid-stream.
             let currentMessageIdForTextUpdate: string | null = reasoningId;
             
             const read = async () => {
               const { done, value } = await reader.read();
               if (done) {
+                // When the entire stream ends, no message is actively streaming.
                 setActiveStreamingMessageId(null);
                 return;
               }
@@ -66,9 +76,17 @@ export const useChat = () => {
 
                   if (response) {
                     if (channel !== currentChannel) {
+                      // If the channel changes, the previous message is no longer actively streaming.
+                      // We update its isStreaming status to false.
+                      if (activeStreamingMessageId) { 
+                        setMessages(prevMessages => prevMessages.map(m =>
+                          m.id === activeStreamingMessageId ? { ...m, isStreaming: false } : m
+                        ));
+                      }
+
                       currentChannel = channel;
                       const newAiMessageId = (Date.now() + Math.random()).toString();
-                      currentMessageIdForTextUpdate = newAiMessageId; // Set for text update
+                      currentMessageIdForTextUpdate = newAiMessageId; // Update for text appending
                       const sender = (channel === 'final') ? 'ai-answer' : 'ai-reasoning';
                       const newMessage: Message = {
                         id: newAiMessageId,
@@ -76,10 +94,11 @@ export const useChat = () => {
                         sender: sender,
                       };
                       setMessages(prevMessages => [...prevMessages, newMessage]);
-                      setActiveStreamingMessageId(newAiMessageId);
+                      setActiveStreamingMessageId(newAiMessageId); // Set new active streaming message
                     } else {
+                      // Append text to the message currently being built.
                       setMessages(prevMessages => prevMessages.map(m =>
-                        m.id === currentMessageIdForTextUpdate // Use for text update
+                        m.id === currentMessageIdForTextUpdate 
                           ? { ...m, text: m.text + response } : m
                       ));
                     }
@@ -99,7 +118,8 @@ export const useChat = () => {
             sender: 'ai-reasoning',
           };
           setMessages(prevMessages => [...prevMessages.filter(m => m.id !== reasoningId), errorMessage]);
-          setActiveStreamingMessageId(null); // Stop streaming on error
+          // On error, no message is actively streaming.
+          setActiveStreamingMessageId(null); 
         }
       };
 
@@ -119,6 +139,8 @@ export const useChat = () => {
     );
   };
 
+  // Dynamically derive the 'isStreaming' status for each message based on activeStreamingMessageId.
+  // This ensures that the UI correctly reflects which message is currently streaming.
   const messagesWithStreamingStatus = messages.map(msg => ({
     ...msg,
     isStreaming: msg.id === activeStreamingMessageId,

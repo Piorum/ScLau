@@ -10,12 +10,18 @@ interface ChatHistoryProps {
 
 const ChatHistory: React.FC<ChatHistoryProps> = ({ messages, deleteMessage, editMessage }) => {
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  // userScrolled is a ref to track if the user has manually scrolled up.
+  // This prevents auto-scrolling from interfering with the user's reading experience.
   const userScrolled = useRef(false);
 
+  // handleWheel and handleTouchStart detect user scroll interaction.
+  // If the user scrolls, auto-scrolling is paused until a new user message is sent.
   const handleWheel = () => {
     userScrolled.current = true;
   };
 
+  // useLayoutEffect is used to perform DOM measurements and manipulations synchronously
+  // after all DOM mutations, ensuring accurate scroll positioning.
   useLayoutEffect(() => {
     const container = chatContainerRef.current;
     if (!container) return;
@@ -25,10 +31,12 @@ const ChatHistory: React.FC<ChatHistoryProps> = ({ messages, deleteMessage, edit
 
     const isUserMessage = lastMessage.sender === 'user';
 
+    // If the last message is from the user, always snap to the bottom and reset the scroll flag.
     if (isUserMessage) {
       userScrolled.current = false;
       container.scrollTop = container.scrollHeight;
     } else {
+      // For AI messages, scroll smoothly only if the user has not manually scrolled up.
       if (!userScrolled.current) {
         const lastElement = container.lastElementChild as HTMLElement;
         if (lastElement) {
@@ -36,7 +44,7 @@ const ChatHistory: React.FC<ChatHistoryProps> = ({ messages, deleteMessage, edit
         }
       }
     }
-  }, [messages]);
+  }, [messages]); // Re-run effect whenever messages array changes.
 
   return (
     <div 

@@ -21,6 +21,7 @@ interface ChatMessageProps {
 }
 
 const ChatMessage: React.FC<ChatMessageProps> = ({ message, deleteMessage, editMessage }) => {
+  // isEditing state controls whether the message is currently in edit mode.
   const [isEditing, setIsEditing] = useState(false);
 
   const handleEdit = () => {
@@ -31,6 +32,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, deleteMessage, editM
     deleteMessage(message.id);
   };
 
+  // handleSave and handleCancel are passed to EditableMessageContent
+  // to manage the editing lifecycle.
   const handleSave = (newText: string) => {
     editMessage(message.id, newText);
     setIsEditing(false);
@@ -40,6 +43,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, deleteMessage, editM
     setIsEditing(false);
   };
 
+  // If the message is in edit mode, render the EditableMessageContent component.
+  // This component encapsulates the textarea and save/cancel buttons.
   if (isEditing) {
     return (
       <div className={`chat-message-wrapper ${message.sender}`}>
@@ -54,6 +59,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, deleteMessage, editM
     );
   }
 
+  // If the message is an AI reasoning message, render the CollapsibleMessage component.
+  // This component handles its own expanded/collapsed state and editing.
   if (message.sender === 'ai-reasoning') {
     return (
       <div className={`chat-message-wrapper ${message.sender}`}>
@@ -66,6 +73,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, deleteMessage, editM
     );
   }
 
+  // For all other messages (user, AI answer), render the standard chat message.
+  // Context actions (edit/delete) are shown only if the message is not currently streaming.
   return (
     <div className={`chat-message-wrapper ${message.sender}`}>
       <div className={`chat-message ${message.sender}`}>
