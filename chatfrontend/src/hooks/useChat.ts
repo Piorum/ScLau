@@ -4,6 +4,7 @@ import { ApiStreamParser } from '../utils/apiStreamParser';
 
 export const useChat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
+  const [activeStreamingMessageId, setActiveStreamingMessageId] = useState<string | null>(null);
 
   const sendMessage = (inputValue: string) => {
     if (!inputValue.trim()) return;
@@ -19,11 +20,11 @@ export const useChat = () => {
       const reasoningId = (Date.now() + 1).toString();
       const reasoningMessage: Message = {
         id: reasoningId,
-        text: 'Thinking...',
+        text: 'Thinking...', 
         sender: 'ai-reasoning',
-        isStreaming: true,
       };
       setMessages(prev => [...prev, reasoningMessage]);
+      setActiveStreamingMessageId(reasoningId);
 
       const fetchAndStream = async () => {
         try {
@@ -47,13 +48,12 @@ export const useChat = () => {
           if (reader) {
             let buffer = '';
             let currentChannel: string | null = null;
-            let currentMessageId: string | null = null;
+            let currentMessageIdForTextUpdate: string | null = reasoningId;
+            
             const read = async () => {
               const { done, value } = await reader.read();
               if (done) {
-                setMessages(prevMessages => prevMessages.map(m =>
-                  m.id === currentMessageId ? { ...m, isStreaming: false } : m
-                ));
+                setActiveStreamingMessageId(null);
                 return;
               }
               buffer += decoder.decode(value, { stream: true });
@@ -66,25 +66,20 @@ export const useChat = () => {
 
                   if (response) {
                     if (channel !== currentChannel) {
-                      if (currentMessageId) {
-                        setMessages(prevMessages => prevMessages.map(m =>
-                          m.id === currentMessageId ? { ...m, isStreaming: false } : m
-                        ));
-                      }
-
                       currentChannel = channel;
-                      currentMessageId = (Date.now() + Math.random()).toString();
+                      const newAiMessageId = (Date.now() + Math.random()).toString();
+                      currentMessageIdForTextUpdate = newAiMessageId; // Set for text update
                       const sender = (channel === 'final') ? 'ai-answer' : 'ai-reasoning';
                       const newMessage: Message = {
-                        id: currentMessageId,
+                        id: newAiMessageId,
                         text: response,
                         sender: sender,
-                        isStreaming: true,
                       };
                       setMessages(prevMessages => [...prevMessages, newMessage]);
+                      setActiveStreamingMessageId(newAiMessageId);
                     } else {
                       setMessages(prevMessages => prevMessages.map(m =>
-                        m.id === currentMessageId
+                        m.id === currentMessageIdForTextUpdate // Use for text update
                           ? { ...m, text: m.text + response } : m
                       ));
                     }
@@ -102,9 +97,9 @@ export const useChat = () => {
             id: (Date.now() + 3).toString(),
             text: `Error: ${error instanceof Error ? error.message : String(error)}`,
             sender: 'ai-reasoning',
-            isStreaming: false,
           };
           setMessages(prevMessages => [...prevMessages.filter(m => m.id !== reasoningId), errorMessage]);
+          setActiveStreamingMessageId(null); // Stop streaming on error
         }
       };
 
@@ -124,5 +119,10 @@ export const useChat = () => {
     );
   };
 
-  return { messages, sendMessage, deleteMessage, editMessage };
+  const messagesWithStreamingStatus = messages.map(msg => ({
+    ...msg,
+    isStreaming: msg.id === activeStreamingMessageId,
+  }));
+
+  return { messages: messagesWithStreamingStatus, sendMessage, deleteMessage, editMessage };
 };

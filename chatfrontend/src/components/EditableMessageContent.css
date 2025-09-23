@@ -1,0 +1,36 @@
+.editable-message-content {
+  width: 100%;
+}
+
+.editable-message-content .edit-textarea {
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--color-text-highlight);
+  font-family: inherit;
+  font-size: inherit;
+  resize: none;
+  overflow: hidden;
+  padding: 0;
+  margin: 0;
+}
+
+.editable-message-content .edit-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.editable-message-content .edit-actions button {
+  background-color: var(--color-primary);
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.editable-message-content .edit-actions button:last-child {
+  background-color: var(--color-border);
+  color: var(--color-text-main);
+}
