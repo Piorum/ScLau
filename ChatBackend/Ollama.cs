@@ -21,15 +21,16 @@ public static class Ollama
         history = new GptOssChatBuilder().WithPrompt(gopb);
     }
 
-    public static ChannelReader<OllamaResponse> GetCompletion(string prompt)
+    public static ChannelReader<OllamaResponse> GetCompletion(string? prompt, Channel<OllamaResponse>? existingReader = null)
     {
-        var channel = Channel.CreateUnbounded<OllamaResponse>();
+        Channel<OllamaResponse> channel = existingReader ?? Channel.CreateUnbounded<OllamaResponse>();
         _ = Task.Run(async () =>
         {
             var client = new HttpClient();
             string url = Environment.GetEnvironmentVariable("OLLAMA_ENDPOINT") ?? throw new("OLLAMA_ENDPOINT was null");
 
-            history.Append(new(GptOssRole.User, GptOssChannel.None, prompt));
+            if(prompt is not null)
+                history.Append(new(GptOssRole.User, GptOssChannel.None, prompt));
 
             var requestBody = new OllamaRequest
             {
@@ -43,8 +44,15 @@ public static class Ollama
             };
 
             StringBuilder responseBuilder = new();
+            bool incomingRole = false;
+            bool incomingChannel = false;
+            bool incomingMessage = false;
+            GptOssChannel currentChannel = GptOssChannel.None;
+            GptOssRole currentRole = GptOssRole.Assistant;
+
             try
             {
+
                 using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
                 response.EnsureSuccessStatusCode();
 
@@ -54,14 +62,64 @@ public static class Ollama
                 while (!reader.EndOfStream)
                 {
                     var line = await reader.ReadLineAsync();
+                    await Console.Out.WriteLineAsync(line);
                     if (string.IsNullOrWhiteSpace(line)) continue;
 
                     var responseObject = JsonSerializer.Deserialize<OllamaResponse>(line);
 
                     if (responseObject is not null)
                     {
-                        responseBuilder.Append(responseObject.Response);
-                        await channel.Writer.WriteAsync(responseObject);
+                        switch (responseObject.Response)
+                        {
+                            case "<|start|>":
+                                incomingRole = true;
+                                continue;
+                            case "<|channel|>":
+                                incomingChannel = true;
+                                continue;
+                            case "<|message|>":
+                                incomingMessage = true;
+                                continue;
+                            case "<|end|>":
+                                incomingMessage = false;
+                                history.Append(new(currentRole, currentChannel, responseBuilder.ToString()));
+                                responseBuilder.Clear();
+                                continue;
+                        }
+
+                        if (incomingMessage)
+                        {
+                            responseBuilder.Append(responseObject.Response);
+
+                            responseObject.Channel = currentChannel;
+
+                            if (currentChannel != GptOssChannel.Final)
+                                responseObject.Done = false;
+                            await channel.Writer.WriteAsync(responseObject);
+                        }
+                        else if (incomingChannel)
+                        {
+                            currentChannel = responseObject.Response switch
+                            {
+                                "analysis" => GptOssChannel.Analysis,
+                                "commentary" => GptOssChannel.Commentary,
+                                "final" => GptOssChannel.Final,
+                                _ => GptOssChannel.None
+                            };
+                            incomingChannel = false;
+                        }
+                        else if (incomingRole)
+                        {
+                            currentRole = responseObject.Response switch
+                            {
+                                "assistant" => GptOssRole.Assistant,
+                                "developer" => GptOssRole.Developer,
+                                "system" => GptOssRole.System,
+                                "user" => GptOssRole.User,
+                                _ => GptOssRole.None
+                            };
+                            incomingRole = false;
+                        }
                     }
                 }
             }
@@ -74,9 +132,27 @@ public static class Ollama
             }
             finally
             {
-                channel.Writer.Complete();
+
+                if (currentChannel == GptOssChannel.Final)
+                {
+                    responseBuilder.Append("<|return|>");
+                    history.Append(new(currentRole, currentChannel, responseBuilder.ToString()));
+
+                    channel.Writer.Complete();
+                }
+                else
+                {
+                    responseBuilder.Append("<|return|>");
+                    history.Append(new(currentRole, currentChannel, responseBuilder.ToString()));
+
+                    //run tool call
+                    history.Append(new(GptOssRole.System, GptOssChannel.Commentary, "Response terminated unexpectedly."));
+                    await channel.Writer.WriteAsync(new OllamaResponse { Response = "\n\nError: Response terminated unexpectedly.\n\n", Done = false, Channel = currentChannel });
+
+                    GetCompletion(null, channel);
+                }
             }
-            history.AppendRaw($"<|start|>assistant{responseBuilder}");
+
         });
 
         return channel.Reader;

@@ -20,12 +20,6 @@ public class GptOssChatBuilder
         return this;
     }
 
-    public GptOssChatBuilder AppendRaw(string text)
-    {
-        sb.Append(text);
-        return this;
-    }
-
     public GptOssChatBuilder WithPrompt(GptOssPromptBuilder gptOssPromptBuilder)
     {
         gopb = gptOssPromptBuilder;
