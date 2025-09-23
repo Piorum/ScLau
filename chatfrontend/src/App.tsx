@@ -12,7 +12,7 @@ function App() {
   const [inputValue, setInputValue] = useState('');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const { messages, sendMessage } = useChat();
+  const { messages, sendMessage, deleteMessage, editMessage } = useChat();
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -52,7 +52,7 @@ function App() {
       <div className="main-content-wrapper">
         <TopBar onMenuToggle={toggleMenu} />
         <div className="chat-area-wrapper">
-            <ChatHistory messages={messages} />
+            <ChatHistory messages={messages} deleteMessage={deleteMessage} editMessage={editMessage} />
             <div className="input-area">
               <input
                 type="text"

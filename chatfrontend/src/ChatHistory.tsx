@@ -4,9 +4,11 @@ import './ChatHistory.css';
 
 interface ChatHistoryProps {
   messages: Message[];
+  deleteMessage: (messageId: string) => void;
+  editMessage: (messageId: string, newText: string) => void;
 }
 
-const ChatHistory: React.FC<ChatHistoryProps> = ({ messages }) => {
+const ChatHistory: React.FC<ChatHistoryProps> = ({ messages, deleteMessage, editMessage }) => {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const userScrolled = useRef(false);
 
@@ -46,7 +48,7 @@ const ChatHistory: React.FC<ChatHistoryProps> = ({ messages }) => {
       <div style={{ flexGrow: 1 }}></div>
       {messages.map((message, index) => {
         const isLoading = message.sender === 'ai-reasoning' && index === messages.length - 1;
-        return <ChatMessage key={message.id} message={{...message, isLoading}} />;
+        return <ChatMessage key={message.id} message={{...message, isLoading}} deleteMessage={deleteMessage} editMessage={editMessage} />;
       })}
     </div>
   );

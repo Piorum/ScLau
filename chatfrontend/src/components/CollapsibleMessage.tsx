@@ -1,14 +1,17 @@
 import React, { useState } from 'react';
 import LoadingIcon from './LoadingIcon';
+import MessageActions from './MessageActions';
 import './CollapsibleMessage.css';
 
 interface CollapsibleMessageProps {
   title: string;
   children: React.ReactNode;
   isLoading: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
 }
 
-const CollapsibleMessage: React.FC<CollapsibleMessageProps> = ({ title, children, isLoading }) => {
+const CollapsibleMessage: React.FC<CollapsibleMessageProps> = ({ title, children, isLoading, onEdit, onDelete }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const toggleExpand = () => {
@@ -25,6 +28,7 @@ const CollapsibleMessage: React.FC<CollapsibleMessageProps> = ({ title, children
       <div className="collapsible-content">
         {children}
       </div>
+      <MessageActions onEdit={onEdit} onDelete={onDelete} />
     </div>
   );
 };

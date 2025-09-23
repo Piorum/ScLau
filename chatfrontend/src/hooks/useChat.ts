@@ -101,5 +101,17 @@ export const useChat = () => {
     }, 0);
   };
 
-  return { messages, sendMessage };
+  const deleteMessage = (messageId: string) => {
+    setMessages(prevMessages => prevMessages.filter(msg => msg.id !== messageId));
+  };
+
+  const editMessage = (messageId: string, newText: string) => {
+    setMessages(prevMessages =>
+      prevMessages.map(msg =>
+        msg.id === messageId ? { ...msg, text: newText } : msg
+      )
+    );
+  };
+
+  return { messages, sendMessage, deleteMessage, editMessage };
 };
