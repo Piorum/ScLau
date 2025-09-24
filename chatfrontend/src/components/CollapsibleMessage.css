@@ -38,6 +38,13 @@
   transform: rotate(-135deg);
 }
 
+.collapsible-header .loading-icon-wrapper {
+  width: 24px;
+  height: 24px;
+  margin-top: 5px;
+  margin-left: 3px;
+}
+
 .collapsible-message.editing {
   width: 100%;
   max-width: 80%;
