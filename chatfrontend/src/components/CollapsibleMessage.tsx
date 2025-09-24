@@ -2,6 +2,10 @@ import React, { useState } from 'react';
 import LoadingIcon from './LoadingIcon';
 import MessageActions from './MessageActions';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import rehypeHighlight from 'rehype-highlight';
 import EditableMessageContent from './EditableMessageContent';
 import './CollapsibleMessage.css';
 import '../ChatMessage.css'; // Import ChatMessage.css for edit styles
@@ -60,7 +64,10 @@ const CollapsibleMessage: React.FC<CollapsibleMessageProps> = ({ message, onEdit
         {message.isStreaming && <LoadingIcon />}
       </div>
       <div className="collapsible-content">
-        <ReactMarkdown>{message.text}</ReactMarkdown>
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm, remarkMath]}
+          rehypePlugins={[rehypeKatex, rehypeHighlight]}
+        >{message.text}</ReactMarkdown>
       </div>
       {isExpanded && !message.isStreaming && <MessageActions onEdit={handleEdit} onDelete={handleDelete} />}
     </div>

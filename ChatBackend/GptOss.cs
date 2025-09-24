@@ -201,8 +201,6 @@ public static class GptOss
                     Done = true
                 });
                 Channel.Writer.Complete();
-
-                await Console.Out.WriteLineAsync($"{History}");
             }
             else
             {

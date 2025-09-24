@@ -4,6 +4,8 @@ import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 import { ThemeProvider } from './context/ThemeContext';
+import 'katex/dist/katex.min.css'; // Import KaTeX CSS
+import 'highlight.js/styles/github-dark.css'; // Import highlight.js CSS
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement

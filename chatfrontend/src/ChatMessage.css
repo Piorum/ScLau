@@ -90,16 +90,41 @@
   }
 }
 
+.chat-message table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 10px 0;
+}
+
+.chat-message th,
+.chat-message td {
+  border: 1px solid var(--color-border);
+  padding: 8px;
+  text-align: left;
+}
+
+.chat-message th {
+  background-color: var(--color-component-bg);
+}
+
 .chat-message pre {
-  background-color: var(--color-border);
+  background-color: var(--color-darkest-bg); /* Darker background for code blocks */
   padding: 10px;
-  border-radius: 5px;
-  overflow-x: auto; /* Add horizontal scroll for overflowing code */
+  border-radius: 8px; /* More rounded corners */
+  overflow-x: auto;
+  color: var(--color-text-highlight); /* Ensure text is visible */
 }
 
 .chat-message code {
   font-family: 'Courier New', Courier, monospace;
   font-size: 0.9em;
-  white-space: pre-wrap; /* Ensure long lines wrap */
-  word-break: break-all; /* Break long words if necessary */
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: var(--color-text-highlight); /* Ensure text is visible */
+}
+
+.chat-message pre code {
+  background-color: transparent; /* Prevent double background */
+  padding: 0;
+  border-radius: 0;
 }

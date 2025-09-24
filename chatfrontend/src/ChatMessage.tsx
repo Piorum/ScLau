@@ -1,5 +1,9 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import rehypeHighlight from 'rehype-highlight';
 import './ChatMessage.css';
 import CollapsibleMessage from './components/CollapsibleMessage';
 import MessageActions from './components/MessageActions';
@@ -80,7 +84,10 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, deleteMessage, editM
     <div className={`chat-message-wrapper ${message.sender}`}>
       <div className={`chat-message ${message.sender}`}>
         {!message.isStreaming && <MessageActions onEdit={handleEdit} onDelete={handleDelete} />}
-        <ReactMarkdown>{message.text}</ReactMarkdown>
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm, remarkMath]}
+          rehypePlugins={[rehypeKatex, rehypeHighlight]}
+        >{message.text}</ReactMarkdown>
       </div>
     </div>
   );
