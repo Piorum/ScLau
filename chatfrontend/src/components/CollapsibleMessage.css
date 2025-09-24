@@ -37,3 +37,8 @@
 .collapsible-message.expanded .arrow {
   transform: rotate(-135deg);
 }
+
+.collapsible-message.editing {
+  width: 100%;
+  max-width: 80%;
+}

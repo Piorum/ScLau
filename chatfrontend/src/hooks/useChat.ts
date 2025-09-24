@@ -12,8 +12,10 @@ const initialState: ChatState = {
   isAiResponding: false,
 };
 
-function messageReducer(state: ChatState, action: MessageStreamEvent | { type: 'add_user_message'; payload: Message } | { type: 'set_is_responding'; payload: boolean }): ChatState {
+function messageReducer(state: ChatState, action: MessageStreamEvent | { type: 'add_user_message'; payload: Message } | { type: 'set_is_responding'; payload: boolean } | { type: 'delete_message'; payload: string }): ChatState {
   switch (action.type) {
+    case 'delete_message':
+      return { ...state, messages: state.messages.filter(m => m.id !== action.payload) };
     case 'set_is_responding':
       return { ...state, isAiResponding: action.payload };
     case 'add_user_message':
@@ -106,8 +108,7 @@ export const useChat = () => {
   };
 
   const deleteMessage = (messageId: string) => {
-    // This will need to be adapted to the reducer pattern if complex logic is needed
-    // For now, a simple filter on the state is fine
+    dispatch({ type: 'delete_message', payload: messageId });
   };
 
   const editMessage = (messageId: string, newText: string) => {
