@@ -12,7 +12,7 @@ function App() {
   const [inputValue, setInputValue] = useState('');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const { messages, sendMessage, deleteMessage, editMessage } = useChat();
+  const { messages, isAiResponding, sendMessage, deleteMessage, editMessage } = useChat();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-resize textarea height
@@ -65,7 +65,7 @@ function App() {
       <div className="main-content-wrapper">
         <TopBar onMenuToggle={toggleMenu} />
         <div className="chat-area-wrapper">
-            <ChatHistory messages={messages} deleteMessage={deleteMessage} editMessage={editMessage} />
+            <ChatHistory messages={messages} isAiResponding={isAiResponding} deleteMessage={deleteMessage} editMessage={editMessage} />
             <div className="input-area">
               <textarea
                 ref={textareaRef}

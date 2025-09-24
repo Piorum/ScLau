@@ -1,14 +1,16 @@
 import React, { useLayoutEffect, useRef } from 'react';
 import ChatMessage, { Message } from './ChatMessage';
+import LoadingIcon from './components/LoadingIcon';
 import './ChatHistory.css';
 
 interface ChatHistoryProps {
   messages: Message[];
+  isAiResponding: boolean;
   deleteMessage: (messageId: string) => void;
   editMessage: (messageId: string, newText: string) => void;
 }
 
-const ChatHistory: React.FC<ChatHistoryProps> = ({ messages, deleteMessage, editMessage }) => {
+const ChatHistory: React.FC<ChatHistoryProps> = ({ messages, isAiResponding, deleteMessage, editMessage }) => {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   // userScrolled is a ref to track if the user has manually scrolled up.
   // This prevents auto-scrolling from interfering with the user's reading experience.
@@ -57,6 +59,7 @@ const ChatHistory: React.FC<ChatHistoryProps> = ({ messages, deleteMessage, edit
       {messages.map((message, index) => {
         return <ChatMessage key={message.id} message={{...message}} deleteMessage={deleteMessage} editMessage={editMessage} />;
       })}
+      {isAiResponding && <LoadingIcon />}
     </div>
   );
 };

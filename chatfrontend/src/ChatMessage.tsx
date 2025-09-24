@@ -21,7 +21,6 @@ interface ChatMessageProps {
 }
 
 const ChatMessage: React.FC<ChatMessageProps> = ({ message, deleteMessage, editMessage }) => {
-  console.log('Rendering ChatMessage:', message);
   // isEditing state controls whether the message is currently in edit mode.
   const [isEditing, setIsEditing] = useState(false);
 

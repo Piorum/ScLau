@@ -4,14 +4,18 @@ import { streamChat, MessageStreamEvent } from '../utils/streamParser';
 
 type ChatState = {
   messages: Message[];
+  isAiResponding: boolean;
 };
 
 const initialState: ChatState = {
   messages: [],
+  isAiResponding: false,
 };
 
-function messageReducer(state: ChatState, action: MessageStreamEvent | { type: 'add_user_message'; payload: Message }): ChatState {
+function messageReducer(state: ChatState, action: MessageStreamEvent | { type: 'add_user_message'; payload: Message } | { type: 'set_is_responding'; payload: boolean }): ChatState {
   switch (action.type) {
+    case 'set_is_responding':
+      return { ...state, isAiResponding: action.payload };
     case 'add_user_message':
       return { ...state, messages: [...state.messages, action.payload] };
     case 'reasoning_started': {
@@ -21,7 +25,7 @@ function messageReducer(state: ChatState, action: MessageStreamEvent | { type: '
         sender: 'ai-reasoning',
         isStreaming: true,
       };
-      return { ...state, messages: [...state.messages, newMessage] };
+      return { ...state, isAiResponding: false, messages: [...state.messages, newMessage] };
     }
     case 'reasoning_append': {
       return {
@@ -54,6 +58,7 @@ function messageReducer(state: ChatState, action: MessageStreamEvent | { type: '
     case 'stream_done': {
       return {
         ...state,
+        isAiResponding: false,
         messages: state.messages.map(m => ({ ...m, isStreaming: false })),
       };
     }
@@ -74,6 +79,7 @@ export const useChat = () => {
       sender: 'user',
     };
     dispatch({ type: 'add_user_message', payload: userMessage });
+    dispatch({ type: 'set_is_responding', payload: true });
 
     try {
       const response = await fetch('/api/data', {
@@ -108,5 +114,5 @@ export const useChat = () => {
     // This will also need to be adapted
   };
 
-  return { messages: state.messages, sendMessage, deleteMessage, editMessage };
+  return { messages: state.messages, isAiResponding: state.isAiResponding, sendMessage, deleteMessage, editMessage };
 };
