@@ -1,3 +1,4 @@
+using ChatBackend.Models.GptOss;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ChatBackend.Controllers
@@ -12,8 +13,22 @@ namespace ChatBackend.Controllers
             Response.ContentType = "application/json";
             var channelReader = GptOss.ContinueChat(0, userPrompt);
 
+            Random rand = new((int)DateTimeOffset.Now.ToUnixTimeSeconds());
+            string currentChannel = GptOssChannel.Analysis.ToString().ToLower();
+
+            ulong currentId = (ulong)rand.NextInt64();
+            await Console.Out.WriteLineAsync(currentId.ToString());
+
             await foreach (var gptOssResponse in channelReader.ReadAllAsync())
             {
+                if (gptOssResponse.Channel is not null && !gptOssResponse.Channel.Equals(currentChannel, StringComparison.CurrentCultureIgnoreCase))
+                {
+                    currentChannel = gptOssResponse.Channel.ToLower();
+                    currentId = (ulong)rand.NextInt64();
+                    await Console.Out.WriteLineAsync(currentId.ToString());
+                }
+                gptOssResponse.MessageId = currentId;
+
                 var jsonChunk = System.Text.Json.JsonSerializer.Serialize(gptOssResponse);
                 await Response.WriteAsync(jsonChunk + "\n");
                 await Response.Body.FlushAsync();

@@ -12,6 +12,7 @@ export interface Message {
   text: string;
   sender: Sender;
   isStreaming?: boolean;
+  chatIds?: string[];
 }
 
 interface ChatMessageProps {

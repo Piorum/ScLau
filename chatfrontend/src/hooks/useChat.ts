@@ -12,7 +12,9 @@ const initialState: ChatState = {
   isAiResponding: false,
 };
 
-function messageReducer(state: ChatState, action: MessageStreamEvent | { type: 'add_user_message'; payload: Message } | { type: 'set_is_responding'; payload: boolean } | { type: 'delete_message'; payload: string }): ChatState {
+type ReducerAction = MessageStreamEvent | { type: 'add_user_message'; payload: Message } | { type: 'set_is_responding'; payload: boolean } | { type: 'delete_message'; payload: string };
+
+function messageReducer(state: ChatState, action: ReducerAction): ChatState {
   switch (action.type) {
     case 'delete_message':
       return { ...state, messages: state.messages.filter(m => m.id !== action.payload) };
@@ -26,6 +28,7 @@ function messageReducer(state: ChatState, action: MessageStreamEvent | { type: '
         text: action.payload.text,
         sender: 'ai-reasoning',
         isStreaming: true,
+        chatIds: [action.payload.chatId],
       };
       return { ...state, isAiResponding: false, messages: [...state.messages, newMessage] };
     }
@@ -34,6 +37,16 @@ function messageReducer(state: ChatState, action: MessageStreamEvent | { type: '
         ...state,
         messages: state.messages.map(m =>
           m.id === action.payload.id ? { ...m, text: m.text + action.payload.text } : m
+        ),
+      };
+    }
+    case 'reasoning_add_chat_id': {
+      return {
+        ...state,
+        messages: state.messages.map(m =>
+          m.id === action.payload.id
+            ? { ...m, chatIds: [...(m.chatIds || []), action.payload.chatId] }
+            : m
         ),
       };
     }
@@ -46,6 +59,7 @@ function messageReducer(state: ChatState, action: MessageStreamEvent | { type: '
         text: action.payload.text,
         sender: 'ai-answer',
         isStreaming: true,
+        chatIds: [action.payload.chatId],
       };
       return { ...state, messages: [...newMessages, newMessage] };
     }
@@ -102,12 +116,16 @@ export const useChat = () => {
         id: (Date.now() + 3).toString(),
         text: `Error: ${error instanceof Error ? error.message : String(error)}`,
       };
-      dispatch({ type: 'reasoning_started', payload: { ...errorPayload, id: (Date.now() + 3).toString() } });
+      dispatch({ type: 'reasoning_started', payload: { ...errorPayload, id: (Date.now() + 3).toString(), chatId: (Date.now() + 3).toString() } });
       dispatch({ type: 'stream_done' });
     }
   };
 
   const deleteMessage = (messageId: string) => {
+    const messageToDelete = state.messages.find(m => m.id === messageId);
+    if (messageToDelete && messageToDelete.chatIds) {
+      console.log('Simulating backend delete for chatIds:', messageToDelete.chatIds);
+    }
     dispatch({ type: 'delete_message', payload: messageId });
   };
 

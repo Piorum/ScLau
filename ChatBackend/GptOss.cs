@@ -38,7 +38,6 @@ public static class GptOss
             {
                 var token = ollamaResponse.Response;
                 if (token is null) continue;
-                await Console.Out.WriteLineAsync($"{state} {token}");
 
                 if (state.TokenHandlers.TryGetValue(token, out var handler))
                 {
