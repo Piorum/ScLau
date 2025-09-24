@@ -25,7 +25,7 @@ public static class GptOss
             var options = GetChatOptions(chatId);
 
             var ollamaChannel = Channel.CreateUnbounded<OllamaResponse>();
-            Ollama.GetCompletion(new() { Model = "gpt-oss:20b", Prompt = history.WithAssistantTrail(), Options = options }, ollamaChannel);
+            Ollama.GetCompletion(new() { Model = "gpt-oss:20b", Prompt = history.WithAssistantTrail().ToString(), Options = options }, ollamaChannel);
 
             ChatState state = new()
             {
@@ -88,7 +88,7 @@ public static class GptOss
                 .WithDeveloperInstructions(developerMessage)
                 .WithReasoningLevel(reasoningLevel);
 
-        chat.WithPrompt(promptBuilder);
+        chat.TrailingPrompt(promptBuilder);
     }
 
     public static OllamaOptions GetChatOptions(ulong chatId)
@@ -143,7 +143,7 @@ public static class GptOss
             var roleString = $"{sb}";
             CurrentRole = Enum.TryParse<GptOssRole>(roleString, true, out var role)
                 ? role
-                : GptOssRole.None;
+                : GptOssRole.Assistant;
 
             sb.Clear();
 
@@ -201,6 +201,8 @@ public static class GptOss
                     Done = true
                 });
                 Channel.Writer.Complete();
+
+                await Console.Out.WriteLineAsync($"{History}");
             }
             else
             {

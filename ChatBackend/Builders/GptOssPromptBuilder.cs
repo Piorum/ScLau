@@ -1,4 +1,3 @@
-using System.Text;
 using ChatBackend.Models.GptOss;
 
 namespace ChatBackend.Builders;
@@ -7,7 +6,7 @@ public class GptOssPromptBuilder
 {
     private string _systemMessage = "";
     private string _developerInstructions = "";
-    private GptOssReasoningLevel _reasoningLevel = GptOssReasoningLevel.Low;
+    private GptOssReasoningLevel _reasoningLevel = GptOssReasoningLevel.Medium;
 
     public GptOssPromptBuilder WithSystemMessage(string systemMessage)
     {

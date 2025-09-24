@@ -17,7 +17,6 @@ namespace ChatBackend.Controllers
             string currentChannel = GptOssChannel.Analysis.ToString().ToLower();
 
             ulong currentId = (ulong)rand.NextInt64();
-            await Console.Out.WriteLineAsync(currentId.ToString());
 
             await foreach (var gptOssResponse in channelReader.ReadAllAsync())
             {
@@ -25,7 +24,6 @@ namespace ChatBackend.Controllers
                 {
                     currentChannel = gptOssResponse.Channel.ToLower();
                     currentId = (ulong)rand.NextInt64();
-                    await Console.Out.WriteLineAsync(currentId.ToString());
                 }
                 gptOssResponse.MessageId = currentId;
 
