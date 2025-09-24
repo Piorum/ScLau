@@ -7,6 +7,7 @@ import TopBar from './components/TopBar';
 import SideMenu from './components/SideMenu';
 import SettingsMenu from './components/SettingsMenu';
 import { useChat } from './hooks/useChat';
+import { useTheme } from './context/ThemeContext';
 
 function App() {
   const [inputValue, setInputValue] = useState('');
@@ -14,6 +15,19 @@ function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { messages, isAiResponding, sendMessage, deleteMessage, editMessage } = useChat();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { theme } = useTheme();
+
+  // Dynamically load highlight.js theme
+  useEffect(() => {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = theme === 'dark' ? 'highlight.js/styles/github-dark.css' : 'highlight.js/styles/github.css';
+    document.head.appendChild(link);
+
+    return () => {
+      document.head.removeChild(link);
+    };
+  }, [theme]);
 
   // Auto-resize textarea height
   useEffect(() => {
