@@ -10,11 +10,11 @@ namespace ChatBackend.Controllers
         public async Task PostMessageAsync([FromBody] string userPrompt)
         {
             Response.ContentType = "application/json";
-            var channelReader = Ollama.GetCompletion(userPrompt);
+            var channelReader = GptOss.ContinueChat(0, userPrompt);
 
-            await foreach (var ollamaResponse in channelReader.ReadAllAsync())
+            await foreach (var gptOssResponse in channelReader.ReadAllAsync())
             {
-                var jsonChunk = System.Text.Json.JsonSerializer.Serialize(ollamaResponse);
+                var jsonChunk = System.Text.Json.JsonSerializer.Serialize(gptOssResponse);
                 await Response.WriteAsync(jsonChunk + "\n");
                 await Response.Body.FlushAsync();
             }

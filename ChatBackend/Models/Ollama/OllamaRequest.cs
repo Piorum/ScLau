@@ -2,14 +2,18 @@ using System.Text.Json.Serialization;
 
 namespace ChatBackend.Models.Ollama;
 
-public class OllamaRequest
+public record OllamaRequest
 {
     [JsonPropertyName("prompt")]
     public string? Prompt { get; set; }
+
     [JsonPropertyName("model")]
-    public string Model { get; set; } = "gpt-oss:20b";
+    required public string Model { get; set; }
+
     [JsonPropertyName("options")]
     public OllamaOptions Options { get; set; } = new();
+
+    //This is here to get seralized into the json request, Ollama.cs expects this to be true
     [JsonPropertyName("raw")]
-    public bool Raw { get; set; } = true;
+    public bool Raw { get; private set; } = true;
 }
