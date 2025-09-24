@@ -75,24 +75,36 @@ export const useChat = () => {
                           currentChannel = channel;
                           setActiveStreamingMessageId(reasoningId); // Still streaming the reasoning message
                         } else if (channel !== currentChannel) { // Channel has changed
-                          // Mark previous message as not streaming
-                          if (activeStreamingMessageId) {
+                          const isOldChannelReasoning = currentChannel !== 'final';
+                          const isNewChannelReasoning = channel !== 'final';
+                          
+                          if (isOldChannelReasoning && isNewChannelReasoning) {
+                            // If both old and new channels are reasoning channels, just append the text.
                             setMessages(prevMessages => prevMessages.map(m =>
-                              m.id === activeStreamingMessageId ? { ...m, isStreaming: false } : m
+                              m.id === currentMessageIdForTextUpdate
+                                ? { ...m, text: m.text + response } : m
                             ));
-                          }
+                            currentChannel = channel; // Update channel to keep track
+                          } else {
+                            // Mark previous message as not streaming
+                            if (activeStreamingMessageId) {
+                              setMessages(prevMessages => prevMessages.map(m =>
+                                m.id === activeStreamingMessageId ? { ...m, isStreaming: false } : m
+                              ));
+                            }
 
-                          currentChannel = channel;
-                          const newAiMessageId = (Date.now() + Math.random()).toString();
-                          currentMessageIdForTextUpdate = newAiMessageId; // Update for text appending
-                          const sender = (channel === 'final') ? 'ai-answer' : 'ai-reasoning';
-                          const newMessage: Message = {
-                            id: newAiMessageId,
-                            text: response,
-                            sender: sender,
-                          };
-                          setMessages(prevMessages => [...prevMessages, newMessage]);
-                          setActiveStreamingMessageId(newAiMessageId);
+                            currentChannel = channel;
+                            const newAiMessageId = (Date.now() + Math.random()).toString();
+                            currentMessageIdForTextUpdate = newAiMessageId; // Update for text appending
+                            const sender = (channel === 'final') ? 'ai-answer' : 'ai-reasoning';
+                            const newMessage: Message = {
+                              id: newAiMessageId,
+                              text: response,
+                              sender: sender,
+                            };
+                            setMessages(prevMessages => [...prevMessages, newMessage]);
+                            setActiveStreamingMessageId(newAiMessageId);
+                          }
                         } else { // Same channel, append text
                           setMessages(prevMessages => prevMessages.map(m =>
                             m.id === currentMessageIdForTextUpdate
