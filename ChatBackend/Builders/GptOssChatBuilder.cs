@@ -1,4 +1,3 @@
-using System;
 using System.Text;
 using ChatBackend.Models.GptOss;
 
@@ -11,11 +10,41 @@ public class GptOssChatBuilder
 
     public GptOssChatBuilder Append(GptOssChatChunk chatChunk)
     {
-        sb.Append($"<|start|>{chatChunk.role.ToString().ToLower()}");
-        if (chatChunk.channel != GptOssChannel.None)
-            sb.Append($"<|channel|>{chatChunk.channel.ToString().ToLower()}");
+        sb.Append($"<|start|>{chatChunk.Role.ToString().ToLower()}");
+        if (chatChunk.Channel != GptOssChannel.None)
+            sb.Append($"<|channel|>{chatChunk.Channel.ToString().ToLower()}");
 
-        sb.Append($"<|message|>{chatChunk.message}<|end|>");
+        sb.Append($"<|message|>{chatChunk.Message}<|end|>");
+
+        return this;
+    }
+
+    public GptOssChatBuilder AppendToolCall(string functionName, string message)
+    {
+        sb.Append($"<|start|>assistant");
+        sb.Append($"<|channel|>commentary to=functions.{functionName}<|constrain|>json");
+        sb.Append($"<|message|>{message}");
+        sb.Append($"<|call|>");
+
+        return this;
+    }
+    
+    public GptOssChatBuilder AppendMalformedToolCall(string channelRaw, string message)
+    {
+        sb.Append($"<|start|>assistant");
+        sb.Append($"<|channel|>{channelRaw}");
+        sb.Append($"<|message|>{message}");
+        sb.Append($"<|call|>");
+
+        return this;
+    }
+
+    public GptOssChatBuilder AppendToolResult(string functionName, GptOss.IToolCallResult result)
+    {
+        sb.Append($"<|start|>functions.{functionName} to=assistant");
+        sb.Append($"<|channel|>commentary");
+        sb.Append($"<|message|>{result.Seralize()}");
+        sb.Append($"<|end|>");
 
         return this;
     }
@@ -46,4 +75,4 @@ public class GptOssChatBuilder
 
 }
 
-public record GptOssChatChunk(GptOssRole role, GptOssChannel channel, string message);
+public record GptOssChatChunk(GptOssRole Role, GptOssChannel Channel, string Message);
