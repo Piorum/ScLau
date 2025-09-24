@@ -262,6 +262,8 @@ public static class GptOss
                 var newChannel = ContinueChat(chatId);
                 await foreach (var gptOssResponse in newChannel.ReadAllAsync())
                     await Channel.Writer.WriteAsync(gptOssResponse);
+
+                Channel.Writer.Complete();
             }
 
         }
