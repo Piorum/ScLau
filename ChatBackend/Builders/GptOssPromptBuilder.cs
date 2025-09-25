@@ -34,8 +34,8 @@ public class GptOssPromptBuilder
     {
         GptOssChatBuilder gocb = new();
 
-        gocb.Append(new(GptOssRole.System, GptOssChannel.None, $"{_systemMessage}\nKnowledge cutoff: 2024-06\nCurrent date: {DateTime.Now:yyyy-MM-dd}\n\nReasoning: {_reasoningLevel.ToString().ToLower()}\n\n# Valid channels: analysis, commentary, final. Channel must be included for every message."));
-        gocb.Append(new(GptOssRole.Developer, GptOssChannel.None, $"# Instructions\n\n{_developerInstructions}\n\n"));
+        gocb.Append(new(GptOssRole.System, GptOssChannel.None, $"{_systemMessage}\nKnowledge cutoff: 2024-06\nCurrent date: {DateTime.Now:yyyy-MM-dd}\n\nReasoning: {_reasoningLevel.ToString().ToLower()}\n\n# Valid channels: analysis, commentary, final. Channel must be included for every message."), 0);
+        gocb.Append(new(GptOssRole.Developer, GptOssChannel.None, $"# Instructions\n\n{_developerInstructions}\n\n"), 1);
 
 
         return gocb.ToString();

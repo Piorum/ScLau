@@ -13,52 +13,56 @@ public class GptOssChatBuilder
 
     private bool withAssistantTrail = false;
 
-    public GptOssChatBuilder Append(GptOssChatChunk chatChunk)
+    public GptOssChatBuilder Append(GptOssChatChunk chatChunk, ulong messageId)
     {
         messages.Add(new GptOssMessage(
             roleText: $"{chatChunk.Role.ToString().ToLower()}",
             channelText: chatChunk.Channel != GptOssChannel.None ? $"{chatChunk.Channel.ToString().ToLower()}" : null,
             message: $"{chatChunk.Message}",
-            stopToken: GptOssStopToken.End
+            stopToken: GptOssStopToken.End,
+            messageId: messageId
         ));
 
         compiled = false;
         return this;
     }
 
-    public GptOssChatBuilder AppendToolCall(string functionName, string message)
+    public GptOssChatBuilder AppendToolCall(string functionName, string message, ulong messageId)
     {
         messages.Add(new GptOssMessage(
             roleText: $"assistant",
             channelText: $"commentary to=functions.{functionName}<|constrain|>json",
             message: $"{message}",
-            stopToken: GptOssStopToken.Call
+            stopToken: GptOssStopToken.Call,
+            messageId: messageId
         ));
 
         compiled = false;
         return this;
     }
 
-    public GptOssChatBuilder AppendMalformedToolCall(string channelRaw, string message)
+    public GptOssChatBuilder AppendMalformedToolCall(string channelRaw, string message, ulong messageId)
     {
         messages.Add(new GptOssMessage(
             roleText: $"assistant",
             channelText: $"{channelRaw}",
             message: $"{message}",
-            stopToken: GptOssStopToken.Call
+            stopToken: GptOssStopToken.Call,
+            messageId: messageId
         ));
 
         compiled = false;
         return this;
     }
 
-    public GptOssChatBuilder AppendToolResult(string functionName, GptOss.IToolCallResult result)
+    public GptOssChatBuilder AppendToolResult(string functionName, GptOss.IToolCallResult result, ulong messageId)
     {
         messages.Add(new GptOssMessage(
             roleText: $"functions.{functionName} to=assistant",
             channelText: $"commentary",
             message: $"{result.Seralize()}",
-            stopToken: GptOssStopToken.End
+            stopToken: GptOssStopToken.End,
+            messageId: messageId
         ));
 
         compiled = false;
@@ -137,17 +141,14 @@ public class GptOssChatBuilder
         public readonly GptOssStopToken StopToken;
         public readonly ulong MessageId;
 
-        public GptOssMessage(string roleText, string? channelText, string message, GptOssStopToken stopToken)
+        public GptOssMessage(string roleText, string? channelText, string message, GptOssStopToken stopToken, ulong messageId)
         {
-            Guid guid = Guid.NewGuid();
-            byte[] guidBytes = guid.ToByteArray();
-            ulong ulonguid = BitConverter.ToUInt64(guidBytes, 0);
 
             RoleText = roleText;
             ChannelText = channelText;
             Message = message;
             StopToken = stopToken;
-            MessageId = ulonguid;
+            MessageId = messageId;
         }
     };
 

@@ -1,5 +1,4 @@
 using System.Text;
-using ChatBackend.Models.GptOss;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ChatBackend.Controllers;
@@ -8,31 +7,23 @@ namespace ChatBackend.Controllers;
 [Route("api/[controller]")]
 public class DataController : ControllerBase
 {
+    public record PromptRequest(string UserPrompt, ulong UserMessageId);
+
     [HttpPost]
-    public async Task PostMessageAsync([FromBody] string userPrompt)
+    public async Task PostMessageAsync([FromBody] PromptRequest request)
     {
         Response.ContentType = "application/json";
-        var channelReader = GptOss.ContinueChat(0, userPrompt);
+        var channelReader = GptOss.ContinueChat(0, messageId: request.UserMessageId, userPrompt: request.UserPrompt);
 
         var rewriter = new LatexStreamRewriter();
 
-        Random rand = new((int)DateTimeOffset.Now.ToUnixTimeSeconds());
-        string currentChannel = GptOssChannel.Analysis.ToString().ToLower();
-
-        ulong currentId = (ulong)rand.NextInt64();
-
         await foreach (var gptOssResponse in channelReader.ReadAllAsync())
         {
-            if (gptOssResponse.Channel is not null && !gptOssResponse.Channel.Equals(currentChannel, StringComparison.CurrentCultureIgnoreCase))
-            {
-                currentChannel = gptOssResponse.Channel.ToLower();
-                currentId = (ulong)rand.NextInt64();
-            }
-            gptOssResponse.MessageId = currentId;
-
             if(gptOssResponse.Response is not null)
                 gptOssResponse.Response = rewriter.ProcessChunk(gptOssResponse.Response);
+
             var jsonChunk = System.Text.Json.JsonSerializer.Serialize(gptOssResponse);
+
             await Response.WriteAsync(jsonChunk + "\n");
             await Response.Body.FlushAsync();
         }

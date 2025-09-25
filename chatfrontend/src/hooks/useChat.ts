@@ -89,8 +89,10 @@ export const useChat = () => {
   const sendMessage = async (inputValue: string) => {
     if (!inputValue.trim()) return;
 
+    const userMessageId = BigInt(Date.now());
     const userMessage: Message = {
-      id: Date.now().toString(),
+      id: userMessageId.toString(),
+      userMessageId,
       text: inputValue,
       sender: 'user',
     };
@@ -101,7 +103,10 @@ export const useChat = () => {
       const response = await fetch('/api/data', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(inputValue),
+        body: JSON.stringify({
+          userPrompt: inputValue,
+          userMessageId: userMessageId.toString(),
+        }),
       });
 
       if (!response.ok || !response.body) {

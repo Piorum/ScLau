@@ -17,6 +17,51 @@ function App() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { theme } = useTheme();
 
+  const testNewEndpoint = async () => {
+    console.log("Testing new endpoint...");
+    try {
+      const response = await fetch('/api/chats/test-chat/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userPrompt: "Hello from the frontend!",
+          userMessageId: crypto.randomUUID(),
+        }),
+      });
+
+      if (!response.ok || !response.body) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          console.log("Stream finished.");
+          break;
+        }
+        
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // Keep the last partial line in the buffer
+
+        lines.filter(line => line.trim()).forEach(line => {
+          try {
+            const parsed = JSON.parse(line);
+            console.log("Received JSON object:", parsed);
+          } catch (e) {
+            console.error("Error parsing JSON chunk:", e, "Chunk was:", line);
+          }
+        });
+      }
+    } catch (error) {
+      console.error("Error testing endpoint:", error);
+    }
+  };
+
   useEffect(() => {
     const existingLink = document.getElementById('highlight-theme');
     if (existingLink) {
@@ -88,6 +133,9 @@ function App() {
 
   return (
     <div className="App">
+      <button onClick={testNewEndpoint} style={{position: 'absolute', zIndex: 9999, top: 10, right: 10}}>
+        Test Endpoint
+      </button>
       <SideMenu isOpen={isMenuOpen} onClose={closeMenu} onSettingsClick={openSettings} />
       <SettingsMenu isOpen={isSettingsOpen} onClose={closeSettings} />
       <div className="main-content-wrapper">

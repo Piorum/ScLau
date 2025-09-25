@@ -1,17 +1,17 @@
 using System.Text;
 using System.Text.Json;
 using System.Threading.Channels;
+using ChatBackend.Models;
 using ChatBackend.Models.Ollama;
 
 namespace ChatBackend;
 
 
-public static class Ollama
+public static class LLMProvider
 {
-
-    public static ChannelReader<OllamaResponse> GetCompletion(OllamaRequest requestBody, Channel<OllamaResponse>? existingChannel = null)
+    static public ChannelReader<string> StreamCompletionAsync(string prompt, ChatOptions options, Channel<string>? existingChannel = null)
     {
-        Channel<OllamaResponse> channel = existingChannel ?? Channel.CreateUnbounded<OllamaResponse>();
+        Channel<string> channel = existingChannel ?? Channel.CreateUnbounded<string>();
 
         _ = Task.Run(async () =>
         {
@@ -19,6 +19,15 @@ public static class Ollama
             string url = Environment.GetEnvironmentVariable("OLLAMA_ENDPOINT") ?? throw new("OLLAMA_ENDPOINT was null");
 
             //Other request values will be initialized by environment variables in the constructor
+            var requestBody = new OllamaRequest()
+            {
+                Model = options.ModelName,
+                Prompt = prompt,
+                Options = new()
+                {
+                    Temperature = options.Temperature
+                }
+            };
             var jsonRequest = JsonSerializer.Serialize(requestBody);
             var request = new HttpRequestMessage(HttpMethod.Post, url)
             {
@@ -40,16 +49,16 @@ public static class Ollama
 
                     var responseObject = JsonSerializer.Deserialize<OllamaResponse>(line);
 
-                    if (responseObject is not null)
+                    if (responseObject is not null && responseObject.Response is not null)
                     {
-                        await channel.Writer.WriteAsync(responseObject);
+                        await channel.Writer.WriteAsync(responseObject.Response);
                     }
                 }
             }
             catch (HttpRequestException ex)
             {
                 Console.WriteLine($"Error making request to Ollama: {ex.Message}");
-                await channel.Writer.WriteAsync(new OllamaResponse { Response = "Error: Could not connect to Ollama.", Done = true });
+                await channel.Writer.WriteAsync("Error: Could not connect to Ollama.");
             }
             finally
             {
@@ -60,5 +69,6 @@ public static class Ollama
 
         return channel.Reader;
     }
+
 }
 
