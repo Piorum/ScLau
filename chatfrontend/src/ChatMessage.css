@@ -91,8 +91,10 @@
 }
 
 .chat-message table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
   border-collapse: collapse;
-  width: 100%;
   margin: 10px 0;
 }
 
@@ -112,7 +114,6 @@
   padding: 10px;
   border-radius: 8px; /* More rounded corners */
   overflow-x: auto;
-  color: var(--color-text-highlight); /* Ensure text is visible */
 }
 
 .chat-message code {
@@ -120,11 +121,15 @@
   font-size: 0.9em;
   white-space: pre-wrap;
   word-break: break-all;
-  color: var(--color-text-highlight); /* Ensure text is visible */
 }
 
 .chat-message pre code {
   background-color: transparent; /* Prevent double background */
   padding: 0;
   border-radius: 0;
+}
+
+.chat-message .katex-display {
+  max-width: 100%;
+  overflow-x: auto;
 }

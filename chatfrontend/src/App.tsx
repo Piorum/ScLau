@@ -17,17 +17,31 @@ function App() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { theme } = useTheme();
 
-  // Dynamically load highlight.js theme
   useEffect(() => {
+    const existingLink = document.getElementById('highlight-theme');
+    if (existingLink) {
+      document.head.removeChild(existingLink);
+    }
+
     const link = document.createElement('link');
+    link.id = 'highlight-theme';
     link.rel = 'stylesheet';
-    link.href = theme === 'dark' ? 'highlight.js/styles/github-dark.css' : 'highlight.js/styles/github.css';
+    link.href = theme === 'dark' 
+      ? 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css' 
+      : 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css';
     document.head.appendChild(link);
 
     return () => {
-      document.head.removeChild(link);
+      const linkTag = document.getElementById('highlight-theme');
+      if (linkTag) {
+        document.head.removeChild(linkTag);
+      }
     };
   }, [theme]);
+
+
+
+
 
   // Auto-resize textarea height
   useEffect(() => {
