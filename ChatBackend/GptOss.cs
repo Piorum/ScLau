@@ -1,34 +1,32 @@
-using System.Collections.Concurrent;
 using System.Text;
 using System.Threading.Channels;
 using ChatBackend.Builders;
+using ChatBackend.Models;
 using ChatBackend.Models.GptOss;
-using ChatBackend.Models.Ollama;
 
 namespace ChatBackend;
 
 public static class GptOss
 {
-    private static readonly ConcurrentDictionary<ulong, OllamaOptions> _chatOptions = [];
-    private static readonly ConcurrentDictionary<ulong, GptOssChatBuilder> _chatHistory = [];
-
-    public static ChannelReader<GptOssResponse> ContinueChat(ulong chatId, ulong? messageId = null, string? userPrompt = null)
+    public static ChannelReader<ModelResponse> ContinueChatAsync(ChatHistory history, ChatOptions options)
     {
-        Channel<GptOssResponse> channel = Channel.CreateUnbounded<GptOssResponse>();
+        Channel<ModelResponse> channel = Channel.CreateUnbounded<ModelResponse>();
 
         _ = Task.Run(async () =>
         {
-            var history = GetChatHistory(chatId);
-            if (userPrompt is not null && messageId is not null)
-                history.Append(new(GptOssRole.User, GptOssChannel.None, userPrompt), (ulong)messageId);
+            var compiledPrompt = CompileChatHistory(history, options);
+            var llmOptions = new ChatOptions()
+            {
+                ModelName = "gpt-oss:20b",
+                Temperature = options.Temperature
+            };
 
-            var options = GetChatOptions(chatId);
-
-            var modelOutput = LLMProvider.StreamCompletionAsync(prompt: history.WithAssistantTrail().ToString(), options: new() { ModelName = "gpt-oss:20b", Temperature = 1.0});
+            var modelOutput = LLMProvider.StreamCompletionAsync(compiledPrompt, llmOptions);
 
             ChatState state = new()
             {
                 History = history,
+                Options = options,
                 Channel = channel
             };
             StringBuilder messageBuilder = new();
@@ -46,32 +44,27 @@ public static class GptOss
                     messageBuilder.Append(token);
                     if (state.IncomingMessage)
                     {
-                        await channel.Writer.WriteAsync(new GptOssResponse
+                        await channel.Writer.WriteAsync(new()
                         {
-                            Response = token,
-                            Channel = $"{state.CurrentChannel}"
+                            MessageId = state.CurrentMessageId,
+                            ContentType = state.CurrentChannel == GptOssChannel.Final ? ContentType.Answer : ContentType.Reasoning,
+                            ContentChunk = token,
+                            IsDone = false
                         });
                     }
                 }
             }
 
-            await state.FinalizeConversation(messageBuilder, chatId);
+            await state.FinalizeConversation(messageBuilder);
         });
 
         return channel;
     }
 
-    public static GptOssChatBuilder GetChatHistory(ulong chatId)
+    public static string CompileChatHistory(ChatHistory history, ChatOptions options)
     {
-        if (!_chatHistory.TryGetValue(chatId, out var history))
-        {
-            history = new GptOssChatBuilder();
-            SetPrompt(history);
 
-            _chatHistory.TryAdd(chatId, history);
-        }
-
-        return history;
+        return "";
     }
 
     public static void SetPrompt(
@@ -89,28 +82,11 @@ public static class GptOss
         chat.TrailingPrompt(promptBuilder);
     }
 
-    public static OllamaOptions GetChatOptions(ulong chatId)
-    {
-        if (!_chatOptions.TryGetValue(chatId, out var options))
-        {
-            options = new();
-
-            _chatOptions.TryAdd(chatId, options);
-        }
-
-        return options;
-    }
-
-    public static void SetOptions(ulong chatId, OllamaOptions options)
-    {
-        var existingOptions = GetChatOptions(chatId);
-        _chatOptions.TryUpdate(chatId, options, existingOptions);
-    }
-
     private record ChatState
     {
-        required public GptOssChatBuilder History;
-        required public Channel<GptOssResponse> Channel;
+        required public ChatHistory History;
+        required public ChatOptions Options;
+        required public Channel<ModelResponse> Channel;
 
         //These default values are based off the state given to the AI when prompt is passed with assistant trail ~"<|start|>assistant"
         public bool IncomingRole { get; private set; } = false;
@@ -122,11 +98,13 @@ public static class GptOss
         public GptOssChannel CurrentChannel { get; private set; } = GptOssChannel.None;
         public GptOssRole CurrentRole { get; private set; } = GptOssRole.Assistant;
 
-        public ulong CurrentMessageId;
+        public Guid CurrentMessageId;
+        public ChatMessage CurrentChatMessage;
 
         public ChatState()
         {
             UpdateCurrentMessageId();
+            CurrentChatMessage = new();
         }
 
         public readonly Dictionary<string, Func<ChatState, StringBuilder, Task>> TokenHandlers =
@@ -192,7 +170,7 @@ public static class GptOss
             return Task.CompletedTask;
         }
 
-        public async Task FinalizeConversation(StringBuilder sb, ulong chatId)
+        public async Task FinalizeConversation(StringBuilder sb)
         {
             if (CurrentChannel != GptOssChannel.Commentary)
             {
@@ -201,9 +179,7 @@ public static class GptOss
 
                 await Channel.Writer.WriteAsync(new()
                 {
-                    Response = "",
-                    Channel = $"{GptOssChannel.Final}",
-                    Done = true
+                    IsDone = true
                 });
                 Channel.Writer.Complete();
             }
@@ -216,7 +192,17 @@ public static class GptOss
                 string errorMessage = "";
                 if (functionName is null || !availableTools.TryGetValue(functionName, out var toolCall))
                 {
-                    History.AppendMalformedToolCall(channelRaw ?? "commentary", $"{sb}", CurrentMessageId);
+                    ChatMessage toolCallMessage = new()
+                    {
+                        MessageId = CurrentMessageId,
+                        Role = MessageRole.Tool,
+                        Content = $"{sb}"
+                    };
+                    toolCallMessage.ExtendedProperties.Add("call", true);
+                    toolCallMessage.ExtendedProperties.Add("valid_tool", false);
+                    toolCallMessage.ExtendedProperties.Add("channel_raw", channelRaw ?? "commentary");
+
+                    History.Messages.Add(toolCallMessage);
                     UpdateCurrentMessageId();
 
                     error = true;
@@ -224,7 +210,18 @@ public static class GptOss
                 }
                 else
                 {
-                    History.AppendToolCall(functionName, $"{sb}", CurrentMessageId);
+                    ChatMessage toolCallMessage = new()
+                    {
+                        MessageId = CurrentMessageId,
+                        Role = MessageRole.Tool,
+                        Content = $"{sb}"
+                    };
+                    toolCallMessage.ExtendedProperties.Add("channel", functionName);
+                    toolCallMessage.ExtendedProperties.Add("call", true);
+                    toolCallMessage.ExtendedProperties.Add("valid_tool", true);
+                    toolCallMessage.ExtendedProperties.Add("function_name", functionName);
+
+                    History.Messages.Add(toolCallMessage);
                     UpdateCurrentMessageId();
 
                     var jsonString = $"{sb}";
@@ -233,14 +230,25 @@ public static class GptOss
                     switch (toolCallResult.Success)
                     {
                         case ToolCallSuccessFlag.Success:
-                            History.AppendToolResult(functionName, toolCallResult, CurrentMessageId);
+                            ChatMessage toolResultMessage = new()
+                            {
+                                MessageId = CurrentMessageId,
+                                Role = MessageRole.Tool,
+                                Content = toolCallResult.Seralize()
+                            };
+                            toolCallMessage.ExtendedProperties.Add("call", false);
+                            toolCallMessage.ExtendedProperties.Add("valid_tool", true);
+                            toolCallMessage.ExtendedProperties.Add("function_name", functionName);
+
+                            History.Messages.Add(toolCallMessage);
                             UpdateCurrentMessageId();
 
-                            await Channel.Writer.WriteAsync(new GptOssResponse
+                            await Channel.Writer.WriteAsync(new()
                             {
-                                Response = toolCallResult.Seralize(),
-                                Channel = $"{GptOssChannel.Commentary}",
-                                MessageId = CurrentMessageId
+                                ContentChunk = toolCallResult.Seralize(),
+                                ContentType = ContentType.Reasoning,
+                                MessageId = CurrentMessageId,
+                                IsDone = false
                             });
 
                             break;
@@ -259,15 +267,17 @@ public static class GptOss
                 {
                     UpdateHistory(new(GptOssRole.System, GptOssChannel.Commentary, errorMessage));
 
-                    await Channel.Writer.WriteAsync(new GptOssResponse
+                    await Channel.Writer.WriteAsync(new()
                     {
-                        Response = errorMessage,
-                        Channel = CurrentChannel.ToString()
+                        ContentChunk = errorMessage,
+                        ContentType = ContentType.Reasoning,
+                        MessageId = CurrentMessageId,
+                        IsDone = false
                     });
                 }
 
                 //continue chat loop returning error or tool call result
-                var newChannel = ContinueChat(chatId);
+                var newChannel = ContinueChatAsync(History, Options);
                 await foreach (var gptOssResponse in newChannel.ReadAllAsync())
                     await Channel.Writer.WriteAsync(gptOssResponse);
 
@@ -278,17 +288,21 @@ public static class GptOss
 
         private void UpdateHistory(GptOssChatChunk chunk)
         {
-            History.Append(chunk, CurrentMessageId);
+            ChatMessage message = new()
+            {
+                MessageId = CurrentMessageId,
+                Role = MessageRole.Assistant,
+                Content = chunk.Message
+            };
+            message.ExtendedProperties.Add("channel", $"{chunk.Channel.ToString().ToLower()}");
+            History.Messages.Add(message);
             UpdateCurrentMessageId();
         }
 
         private void UpdateCurrentMessageId()
         {
-            Guid guid = Guid.NewGuid();
-            var guidbytes = guid.ToByteArray();
-            var ulonguid = BitConverter.ToUInt64(guidbytes, 0);
 
-            CurrentMessageId = ulonguid;
+            CurrentMessageId = Guid.NewGuid();
         }
 
     }

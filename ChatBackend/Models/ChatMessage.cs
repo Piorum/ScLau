@@ -1,6 +1,6 @@
 namespace ChatBackend.Models;
 
-public enum MessageRole { System, User, Assistant, Tool }
+public enum MessageRole { User, Assistant, Tool }
 
 public class ChatMessage
 {

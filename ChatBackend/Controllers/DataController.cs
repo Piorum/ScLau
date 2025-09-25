@@ -7,27 +7,6 @@ namespace ChatBackend.Controllers;
 [Route("api/[controller]")]
 public class DataController : ControllerBase
 {
-    public record PromptRequest(string UserPrompt, ulong UserMessageId);
-
-    [HttpPost]
-    public async Task PostMessageAsync([FromBody] PromptRequest request)
-    {
-        Response.ContentType = "application/json";
-        var channelReader = GptOss.ContinueChat(0, messageId: request.UserMessageId, userPrompt: request.UserPrompt);
-
-        var rewriter = new LatexStreamRewriter();
-
-        await foreach (var gptOssResponse in channelReader.ReadAllAsync())
-        {
-            if(gptOssResponse.Response is not null)
-                gptOssResponse.Response = rewriter.ProcessChunk(gptOssResponse.Response);
-
-            var jsonChunk = System.Text.Json.JsonSerializer.Serialize(gptOssResponse);
-
-            await Response.WriteAsync(jsonChunk + "\n");
-            await Response.Body.FlushAsync();
-        }
-    }
 
     private class LatexStreamRewriter
     {
