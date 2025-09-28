@@ -1,299 +1,182 @@
-using System.ComponentModel;
 using System.Text;
 using System.Threading.Channels;
-using ChatBackend.Builders;
 using ChatBackend.Interfaces;
 using ChatBackend.Models;
-using ChatBackend.Models.GptOss;
 
 namespace ChatBackend;
 
-public static class GptOss
+public class GptOss : IChatGenerator
 {
-    public static ChannelReader<ModelResponse> ContinueChatAsync(ChatHistory history, ChatOptions options)
+    public ChannelReader<ModelResponse> ContinueChatAsync(ChatHistory history, ChatOptions options)
     {
         Channel<ModelResponse> channel = Channel.CreateUnbounded<ModelResponse>();
 
         _ = Task.Run(async () =>
         {
-            var prompt = new GptOssHistoryBuilder().WithHistory(history).WithOptions(options).ToString();
+            bool isConversationDone = false;
 
-            var modelOutput = LLMProvider.StreamCompletionAsync(prompt, options);
-
-            ChatState state = new()
+            while (!isConversationDone)
             {
-                History = history,
-                Options = options,
-                Channel = channel
-            };
-            StringBuilder messageBuilder = new();
+                var prompt = new GptOssHistoryBuilder().WithHistory(history).WithOptions(options).ToString();
+                var modelOutput = LLMProvider.StreamCompletionAsync($"{prompt}<|start|>assistant", options);
 
-            await foreach (var token in modelOutput.ReadAllAsync())
-            {
-                if (token is null) continue;
+                ChatState state = new(promptHasAssistantTrail: true)
+                {
+                    History = history,
+                    Options = options,
+                    Channel = channel
+                };
+                StringBuilder messageBuilder = new();
 
-                if (state.TokenHandlers.TryGetValue(token, out var handler))
+                await foreach (var token in modelOutput.ReadAllAsync())
                 {
-                    await handler(state, messageBuilder);
-                }
-                else
-                {
-                    messageBuilder.Append(token);
-                    if (state.IncomingMessage)
+                    if (token is null) continue;
+
+                    if (state.TokenHandlers.TryGetValue(token, out var handler))
                     {
-                        await channel.Writer.WriteAsync(new()
+                        await handler(state, messageBuilder);
+                    }
+                    else
+                    {
+                        messageBuilder.Append(token);
+                        if (state.IncomingMessage)
                         {
-                            MessageId = state.CurrentMessageId,
-                            ContentType = state.CurrentChannel == GptOssChannel.Final ? ContentType.Answer : ContentType.Reasoning,
-                            ContentChunk = token,
-                            IsDone = false
-                        });
+                            await channel.Writer.WriteAsync(new()
+                            {
+                                MessageId = state.CurrentMessageId,
+                                ContentType = state.ContentType,
+                                ContentChunk = token,
+                                IsDone = false
+                            });
+                        }
                     }
                 }
+
+                isConversationDone = await state.ProcessTurnCompletion(messageBuilder);
             }
 
-            await state.FinalizeConversation(messageBuilder);
+            await channel.Writer.WriteAsync(new() { IsDone = true });
+            channel.Writer.Complete();
         });
 
         return channel;
     }
 
-    private record ChatState
+    private class ChatState
     {
         required public ChatHistory History;
         required public ChatOptions Options;
         required public Channel<ModelResponse> Channel;
 
-        //These default values are based off the state given to the AI when prompt is passed with assistant trail ~"<|start|>assistant"
         public bool IncomingRole { get; private set; } = false;
-        public bool IncomingChannel { get; private set; } = false;
         public bool IncomingMessage { get; private set; } = false;
 
-        private string? channelRaw = null;
-        private string? functionName = null;
-        public GptOssChannel CurrentChannel { get; private set; } = GptOssChannel.None;
-        public GptOssRole CurrentRole { get; private set; } = GptOssRole.Assistant;
+        public string? CurrentChannel { get; private set; } = null;
+        public string? CurrentRole { get; private set; } = null;
 
         public Guid CurrentMessageId;
-        public ChatMessage CurrentChatMessage;
+        public ContentType ContentType => CurrentChannel == "final" ? ContentType.Answer : ContentType.Reasoning;
 
-        public ChatState()
+        private ChatState()
         {
-            UpdateCurrentMessageId();
-            CurrentChatMessage = new();
+            CurrentMessageId = Guid.NewGuid();
+        }
+
+        //These default values are based off the state given to the AI when prompt is passed with assistant trail ~"<|start|>assistant"
+        public ChatState(bool promptHasAssistantTrail) : this()
+        {
+            if (promptHasAssistantTrail)
+            {
+                CurrentRole = "assistant";
+                IncomingRole = false;
+            }
         }
 
         public readonly Dictionary<string, Func<ChatState, StringBuilder, Task>> TokenHandlers =
         new()
         {
-            ["<|start|>"] = async (s, b) => await Task.Run(() => s.SetState(role: true)),
-            ["<|channel|>"] = async (s, b) => await s.CommitRole(b),
-            ["<|message|>"] = async (s, b) => await s.CommitChannel(b),
-            ["<|end|>"] = async (s, b) => await s.CommitMessage(b),
+            ["<|start|>"] = async (s, b) => await Task.Run(() => s.IncomingRole = true),
+            ["<|channel|>"] = async (s, b) => await s.ProcessRoleContent(b),
+            ["<|message|>"] = async (s, b) => await s.ProcessChannelContent(b),
+            ["<|end|>"] = async (s, b) => await s.ProcessMessageContent(b),
 
         };
 
-        private void SetState(bool role = false, bool channel = false, bool message = false)
-            => (IncomingRole, IncomingChannel, IncomingMessage) = (role, channel, message);
-
-        private Task CommitRole(StringBuilder sb)
+        private Task ProcessRoleContent(StringBuilder sb)
         {
-            SetState(channel: true);
-            var roleString = $"{sb}";
-            CurrentRole = Enum.TryParse<GptOssRole>(roleString, true, out var role)
-                ? role
-                : GptOssRole.Assistant;
+            if (IncomingRole)
+            {
+                CurrentRole = $"{sb}";
+                IncomingRole = false;
+            }
 
             sb.Clear();
-
             return Task.CompletedTask;
         }
-        private async Task CommitChannel(StringBuilder sb)
+        private Task ProcessChannelContent(StringBuilder sb)
         {
-            SetState(message: true);
-            var channelString = $"{sb}";
-            CurrentChannel = channelString switch
-            {
-                "analysis" => GptOssChannel.Analysis,
-                "final" => GptOssChannel.Final,
-                _ when channelString.StartsWith("commentary") =>
-                    (
-                        //Extracts function name or sets to null if malformed/not a function
-                        //(shouldn't impact preamble commentary will just set to null)
-                        channelRaw = channelString,
-                        functionName =
-                            channelString is not null
-                            && channelString.StartsWith("commentary to=functions.")
-                            && channelString.EndsWith("<|constrain|>json")
-                                ? channelString?["commentary to=functions.".Length..^"<|constrain|>json".Length].Trim()
-                                : null,
-                        GptOssChannel.Commentary
-                    ).Commentary,
-                _ => GptOssChannel.None
-            };
-            if (CurrentChannel == GptOssChannel.None)
-                await Console.Out.WriteLineAsync($"Unexpected Channel: \"{channelString}\"");
+            IncomingMessage = true;
+            CurrentChannel = $"{sb}";
 
             sb.Clear();
+            return Task.CompletedTask;
         }
-        private Task CommitMessage(StringBuilder sb)
+        private Task ProcessMessageContent(StringBuilder sb)
         {
-            SetState();
-            UpdateHistory(new(CurrentRole, CurrentChannel, $"{sb}"));
+            IncomingMessage = false;
+            UpdateHistory($"{sb}");
 
             sb.Clear();
-
             return Task.CompletedTask;
         }
 
-        public async Task FinalizeConversation(StringBuilder sb)
+        /// <summary>
+        /// Finalizes Assistant Turn
+        /// </summary>
+        /// <param name="sb"></param>
+        /// <returns>Returns 'true' if assistant has yielded</returns>
+        public Task<bool> ProcessTurnCompletion(StringBuilder sb)
         {
-            if (CurrentChannel != GptOssChannel.Commentary)
+            //This logic is terrible but not sure what else to do.
+            string[] nonToolCallChannelNames = ["commentary", "analysis", "final"];
+            if (nonToolCallChannelNames.Contains(CurrentChannel))
             {
-                sb.Append($"<|return|>");
-                UpdateHistory(new(CurrentRole, CurrentChannel, $"{sb}"));
-
-                await Channel.Writer.WriteAsync(new()
-                {
-                    IsDone = true
-                });
-                Channel.Writer.Complete();
+                UpdateHistory($"{sb}", "return");
+                return Task.FromResult(true);
             }
             else
             {
-                //Example non-functional
-                Dictionary<string, Func<string, Task<IToolCallResult>>> availableTools = [];
+                UpdateHistory($"{sb}", "call");
 
-                bool error = false;
-                string errorMessage = "";
-                if (functionName is null || !availableTools.TryGetValue(functionName, out var toolCall))
-                {
-                    ChatMessage toolCallMessage = new()
-                    {
-                        MessageId = CurrentMessageId,
-                        Role = MessageRole.Tool,
-                        Content = $"{sb}"
-                    };
-                    toolCallMessage.ExtendedProperties.Add("call", true);
-                    toolCallMessage.ExtendedProperties.Add("valid_tool", false);
-                    toolCallMessage.ExtendedProperties.Add("channel_raw", channelRaw ?? "commentary");
+                //Handle tool call
+                //Append tool call reply to history
 
-                    History.Messages.Add(toolCallMessage);
-                    UpdateCurrentMessageId();
-
-                    error = true;
-                    errorMessage = "\nError: Malformed or invalid tool name.\n";
-                }
-                else
-                {
-                    ChatMessage toolCallMessage = new()
-                    {
-                        MessageId = CurrentMessageId,
-                        Role = MessageRole.Tool,
-                        Content = $"{sb}"
-                    };
-                    toolCallMessage.ExtendedProperties.Add("channel", functionName);
-                    toolCallMessage.ExtendedProperties.Add("call", true);
-                    toolCallMessage.ExtendedProperties.Add("valid_tool", true);
-                    toolCallMessage.ExtendedProperties.Add("function_name", functionName);
-
-                    History.Messages.Add(toolCallMessage);
-                    UpdateCurrentMessageId();
-
-                    var jsonString = $"{sb}";
-                    var toolCallResult = await toolCall(jsonString);
-
-                    switch (toolCallResult.Success)
-                    {
-                        case ToolCallSuccessFlag.Success:
-                            ChatMessage toolResultMessage = new()
-                            {
-                                MessageId = CurrentMessageId,
-                                Role = MessageRole.Tool,
-                                Content = toolCallResult.Seralize()
-                            };
-                            toolCallMessage.ExtendedProperties.Add("call", false);
-                            toolCallMessage.ExtendedProperties.Add("valid_tool", true);
-                            toolCallMessage.ExtendedProperties.Add("function_name", functionName);
-
-                            History.Messages.Add(toolResultMessage);
-                            UpdateCurrentMessageId();
-
-                            await Channel.Writer.WriteAsync(new()
-                            {
-                                ContentChunk = toolCallResult.Seralize(),
-                                ContentType = ContentType.Reasoning,
-                                MessageId = CurrentMessageId,
-                                IsDone = false
-                            });
-
-                            break;
-                        case ToolCallSuccessFlag.Failed:
-                            error = true;
-                            errorMessage = "\nError: Tool call failed but request was valid.\n";
-                            break;
-                        case ToolCallSuccessFlag.Malformed:
-                            error = true;
-                            errorMessage = "\nError: Tool call arguments were malformed.\n";
-                            break;
-                    }
-                }
-
-                if (error)
-                {
-                    UpdateHistory(new(GptOssRole.System, GptOssChannel.Commentary, errorMessage));
-
-                    await Channel.Writer.WriteAsync(new()
-                    {
-                        ContentChunk = errorMessage,
-                        ContentType = ContentType.Reasoning,
-                        MessageId = CurrentMessageId,
-                        IsDone = false
-                    });
-                }
-
-                //continue chat loop returning error or tool call result
-                var newChannel = ContinueChatAsync(History, Options);
-                await foreach (var gptOssResponse in newChannel.ReadAllAsync())
-                    await Channel.Writer.WriteAsync(gptOssResponse);
-
-                Channel.Writer.Complete();
+                return Task.FromResult(true);
             }
 
         }
 
-        private void UpdateHistory(GptOssChatChunk chunk)
+        private void UpdateHistory(string content, string? endToken = null)
         {
             ChatMessage message = new()
             {
                 MessageId = CurrentMessageId,
-                Role = MessageRole.Assistant,
-                Content = chunk.Message
+                Role = Enum.TryParse<MessageRole>(CurrentRole, true, out var currentRole) ? currentRole : MessageRole.Tool,
+                Content = content
             };
-            message.ExtendedProperties.Add("channel", $"{chunk.Channel.ToString().ToLower()}");
+
+            if(CurrentChannel is not null)
+                message.ExtendedProperties.Add("channel", CurrentChannel);
+            if (endToken is not null)
+                message.ExtendedProperties.Add("end_token", endToken);
+
             History.Messages.Add(message);
-            UpdateCurrentMessageId();
-        }
 
-        private void UpdateCurrentMessageId()
-        {
-
+            CurrentRole = null;
+            CurrentChannel = null;
             CurrentMessageId = Guid.NewGuid();
         }
 
-    }
-
-    public interface IToolCallResult
-    {
-        ToolCallSuccessFlag Success { get; }
-        string Seralize();
-    }
-
-    public enum ToolCallSuccessFlag
-    {
-        Success,
-        Failed,
-        Malformed
     }
 }
 
@@ -339,7 +222,7 @@ public class GptOssHistoryBuilder
                     MessageRole.User => "user",
                     MessageRole.Assistant => "assistant",
                     MessageRole.Tool => GetToolRoleText(message),
-                    _ => throw new InvalidEnumArgumentException(message.Role.ToString(), (int)message.Role, typeof(MessageRole))
+                    _ => throw new System.ComponentModel.InvalidEnumArgumentException(message.Role.ToString(), (int)message.Role, typeof(MessageRole))
                 };
 
                 string? channelText = GetProperty(message, "channel");

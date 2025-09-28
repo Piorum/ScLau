@@ -3,7 +3,7 @@ using ChatBackend.Models;
 
 namespace ChatBackend.Interfaces;
 
-public interface IChatGeneration
+public interface IChatGenerator
 {
     ChannelReader<ModelResponse> ContinueChatAsync(
         ChatHistory history,

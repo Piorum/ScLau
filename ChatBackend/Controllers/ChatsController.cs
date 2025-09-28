@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using ChatBackend.Models;
 using ChatBackend.Fakes;
 using System.Text.Json;
+using System.Text;
 
 namespace ChatBackend.Controllers;
 
@@ -9,7 +10,7 @@ namespace ChatBackend.Controllers;
 [Route("api/[controller]")]
 public class ChatsController : ControllerBase
 {
-    private readonly FakeGptOssGenerator _chatGenerator = new();
+    private readonly GptOss _chatGenerator = new();
 
     // GET /api/chats
     [HttpGet]
@@ -49,13 +50,57 @@ public class ChatsController : ControllerBase
         });
 
         var options = request.Options ?? new ChatOptions();
+        options.ModelName = "gpt-oss:20b";
+        options.SystemMessage = "You are a large language model (LLM).";
+        options.ExtendedProperties.TryAdd("developer_message", "Fulfill the request to the best of your abilities.");
 
+        LatexStreamRewriter lsr = new();
         Response.ContentType = "application/x-ndjson";
         await foreach (var response in _chatGenerator.ContinueChatAsync(history, options).ReadAllAsync())
         {
+            response.ContentChunk = lsr.ProcessChunk(response.ContentChunk);
             var jsonChunk = JsonSerializer.Serialize(response);
             await Response.WriteAsync(jsonChunk + "\n");
             await Response.Body.FlushAsync();
+        }
+    }
+
+    private class LatexStreamRewriter
+    {
+        private bool waitingForNext = false;
+        private readonly StringBuilder sb = new();
+
+        public string ProcessChunk(string token)
+        {
+            sb.Clear();
+
+            foreach (var c in token)
+                if (waitingForNext)
+                {
+                    switch (c)
+                    {
+                        case '(':
+                        case ')':
+                            sb.Append('$');
+                            break;
+                        case '[':
+                        case ']':
+                            sb.Append("$$");
+                            break;
+                        default:
+                            sb.Append('\\').Append(c); // not math, output the backslash + current char
+                            break;
+                    }
+
+                    waitingForNext = false;
+                }
+                else
+                    if (c == '\\')
+                    waitingForNext = true; // hold until next character
+                else
+                    sb.Append(c);
+
+            return $"{sb}";
         }
     }
 }
