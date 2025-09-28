@@ -13,11 +13,9 @@ export type Sender = 'user' | 'ai-reasoning' | 'ai-answer';
 
 export interface Message {
   id: string;
-  userMessageId?: bigint;
   text: string;
   sender: Sender;
   isStreaming?: boolean;
-  chatIds?: string[];
 }
 
 interface ChatMessageProps {
