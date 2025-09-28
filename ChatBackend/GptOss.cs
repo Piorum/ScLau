@@ -1,6 +1,8 @@
+using System.ComponentModel;
 using System.Text;
 using System.Threading.Channels;
 using ChatBackend.Builders;
+using ChatBackend.Interfaces;
 using ChatBackend.Models;
 using ChatBackend.Models.GptOss;
 
@@ -14,14 +16,9 @@ public static class GptOss
 
         _ = Task.Run(async () =>
         {
-            var compiledPrompt = CompileChatHistory(history, options);
-            var llmOptions = new ChatOptions()
-            {
-                ModelName = "gpt-oss:20b",
-                Temperature = options.Temperature
-            };
+            var prompt = new GptOssHistoryBuilder().WithHistory(history).WithOptions(options).ToString();
 
-            var modelOutput = LLMProvider.StreamCompletionAsync(compiledPrompt, llmOptions);
+            var modelOutput = LLMProvider.StreamCompletionAsync(prompt, options);
 
             ChatState state = new()
             {
@@ -59,27 +56,6 @@ public static class GptOss
         });
 
         return channel;
-    }
-
-    public static string CompileChatHistory(ChatHistory history, ChatOptions options)
-    {
-
-        return "";
-    }
-
-    public static void SetPrompt(
-        GptOssChatBuilder chat,
-        string systemMessage = "You are a large language model (LLM).",
-        string developerMessage = "Fulfill the request to the best of your abilities",
-        GptOssReasoningLevel reasoningLevel = GptOssReasoningLevel.Low
-    )
-    {
-        var promptBuilder = new GptOssPromptBuilder()
-                .WithSystemMessage(systemMessage)
-                .WithDeveloperInstructions(developerMessage)
-                .WithReasoningLevel(reasoningLevel);
-
-        chat.TrailingPrompt(promptBuilder);
     }
 
     private record ChatState
@@ -240,7 +216,7 @@ public static class GptOss
                             toolCallMessage.ExtendedProperties.Add("valid_tool", true);
                             toolCallMessage.ExtendedProperties.Add("function_name", functionName);
 
-                            History.Messages.Add(toolCallMessage);
+                            History.Messages.Add(toolResultMessage);
                             UpdateCurrentMessageId();
 
                             await Channel.Writer.WriteAsync(new()
@@ -321,3 +297,84 @@ public static class GptOss
     }
 }
 
+public class GptOssHistoryBuilder
+{
+    private ChatHistory? history;
+    private ChatOptions? options;
+
+    private readonly StringBuilder sb = new();
+
+    public GptOssHistoryBuilder WithHistory(ChatHistory history)
+    {
+        this.history = history;
+        return this;
+    }
+    public GptOssHistoryBuilder WithOptions(ChatOptions options)
+    {
+        this.options = options;
+        return this;
+    }
+
+    private void Compile()
+    {
+        sb.Clear();
+
+        if (options is not null)
+        {
+            string reasoningLevel = GetProperty(options, "reasoning_level") ?? "low";
+
+            string? developerMessage = GetProperty(options, "developer_message");
+
+            Append("system", $"{options.SystemMessage}\nKnowledge cutoff: 2024-06\nCurrent date: {DateTime.Now:yyyy-MM-dd}\n\nReasoning: {reasoningLevel}\n\n# Valid channels: analysis, commentary, final. Channel must be included for every message.");
+            if (developerMessage is not null)
+                Append("developer", $"# Instructions\n\n{developerMessage}\n\n");
+        }
+
+        if (history is not null)
+        {
+            foreach (var message in history.Messages)
+            {
+                string roleText = message.Role switch
+                {
+                    MessageRole.User => "user",
+                    MessageRole.Assistant => "assistant",
+                    MessageRole.Tool => GetToolRoleText(message),
+                    _ => throw new InvalidEnumArgumentException(message.Role.ToString(), (int)message.Role, typeof(MessageRole))
+                };
+
+                string? channelText = GetProperty(message, "channel");
+
+                string? endTokenText = GetProperty(message, "end_token");
+
+                Append(roleText, message.Content, channelText, endTokenText);
+            }
+        }
+
+    }
+
+    private static string GetToolRoleText(ChatMessage message)
+    {
+        string functionName = GetProperty(message, "function_name") ?? "unknown";
+        string functionNamespace = GetProperty(message, "function_namespace") ?? "functions";
+
+        return $"{functionNamespace}.{functionName} to=assistant";
+    }
+
+    private static string? GetProperty(IExtensibleProperties obj, string key) =>
+        obj.ExtendedProperties.TryGetValue(key, out var val) ? val as string : null;
+
+    private void Append(string roleText, string messageText, string? channelText = null, string? endTokenText = null)
+    {
+        sb.Append($"<|start|>{roleText}");
+        if (channelText is not null)
+            sb.Append($"<|channel|>{channelText}");
+        sb.Append($"<|message|>{messageText}");
+        sb.Append($"<|{endTokenText ?? "end"}|>");
+    }
+
+    public override string ToString()
+    {
+        Compile();
+        return sb.ToString();
+    }
+}

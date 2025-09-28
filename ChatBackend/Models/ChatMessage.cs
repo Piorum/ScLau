@@ -1,12 +1,14 @@
+using ChatBackend.Interfaces;
+
 namespace ChatBackend.Models;
 
 public enum MessageRole { User, Assistant, Tool }
 
-public class ChatMessage
+public class ChatMessage : IExtensibleProperties
 {
     public Guid MessageId { get; set; }
     public MessageRole Role { get; set; }
     public string Content { get; set; } = "";
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;
-    public Dictionary<string, object> ExtendedProperties { get; set; } = [];
+    public IDictionary<string, object> ExtendedProperties { get; private set; } = new Dictionary<string, object>();
 }
