@@ -2,7 +2,6 @@
   border: 1px solid var(--color-border);
   border-radius: 15px;
   background-color: var(--color-component-bg);
-  margin-bottom: 5px;
   max-width: 80%;
   word-wrap: break-word;
   position: relative; /* <-- ADDED */
