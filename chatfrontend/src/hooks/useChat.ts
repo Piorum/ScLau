@@ -1,5 +1,5 @@
 import { useReducer } from 'react';
-import { Message } from '../ChatMessage';
+import { Message } from '../types';
 import { streamChat, MessageStreamEvent } from '../utils/streamParser';
 
 type ChatState = {
@@ -12,23 +12,47 @@ const initialState: ChatState = {
   isAiResponding: false,
 };
 
-type ReducerAction = MessageStreamEvent | { type: 'add_user_message'; payload: Message } | { type: 'set_is_responding'; payload: boolean } | { type: 'delete_message'; payload: string };
+type ReducerAction =
+  | MessageStreamEvent
+  | { type: 'add_user_message'; payload: Message }
+  | { type: 'set_is_responding'; payload: boolean }
+  | { type: 'delete_message'; payload: string }
+  | { type: 'delete_messages'; payload: string[] }
+  | { type: 'edit_message', payload: { messageId: string, newText: string } }
+  | { type: 'edit_reasoning_parts', payload: { edits: { partId: string, newText: string }[] } };
+
 
 function messageReducer(state: ChatState, action: ReducerAction): ChatState {
   switch (action.type) {
     case 'delete_message':
       return { ...state, messages: state.messages.filter(m => m.id !== action.payload) };
+    case 'delete_messages':
+      return { ...state, messages: state.messages.filter(m => !action.payload.includes(m.id)) };
+    case 'edit_message':
+        return {
+            ...state,
+            messages: state.messages.map(m =>
+                m.id === action.payload.messageId ? { ...m, text: action.payload.newText } : m
+            )
+        };
+    case 'edit_reasoning_parts':
+        return {
+            ...state,
+            messages: state.messages.map(m => {
+                const edit = action.payload.edits.find(e => e.partId === m.id);
+                return edit ? { ...m, text: edit.newText } : m;
+            })
+        };
     case 'set_is_responding':
       return { ...state, isAiResponding: action.payload };
     case 'add_user_message':
       return { ...state, messages: [...state.messages, action.payload] };
     case 'reasoning_started': {
       const newMessage: Message = {
-        id: action.payload.id,
-        text: action.payload.text,
+        id: action.payload.messageId,
+        text: action.payload.chunk,
         sender: 'ai-reasoning',
         isStreaming: true,
-        chatIds: [action.payload.chatId],
       };
       return { ...state, isAiResponding: false, messages: [...state.messages, newMessage] };
     }
@@ -36,30 +60,19 @@ function messageReducer(state: ChatState, action: ReducerAction): ChatState {
       return {
         ...state,
         messages: state.messages.map(m =>
-          m.id === action.payload.id ? { ...m, text: m.text + action.payload.text } : m
-        ),
-      };
-    }
-    case 'reasoning_add_chat_id': {
-      return {
-        ...state,
-        messages: state.messages.map(m =>
-          m.id === action.payload.id
-            ? { ...m, chatIds: [...(m.chatIds || []), action.payload.chatId] }
-            : m
+          m.id === action.payload.messageId ? { ...m, text: m.text + action.payload.chunk } : m
         ),
       };
     }
     case 'answer_started': {
-      const newMessages = state.messages.map(m => 
+      const newMessages = state.messages.map(m =>
         m.sender === 'ai-reasoning' ? { ...m, isStreaming: false } : m
       );
       const newMessage: Message = {
-        id: action.payload.id,
-        text: action.payload.text,
+        id: action.payload.messageId,
+        text: action.payload.chunk,
         sender: 'ai-answer',
         isStreaming: true,
-        chatIds: [action.payload.chatId],
       };
       return { ...state, messages: [...newMessages, newMessage] };
     }
@@ -67,7 +80,7 @@ function messageReducer(state: ChatState, action: ReducerAction): ChatState {
       return {
         ...state,
         messages: state.messages.map(m =>
-          m.id === action.payload.id ? { ...m, text: m.text + action.payload.text } : m
+          m.id === action.payload.messageId ? { ...m, text: m.text + action.payload.chunk } : m
         ),
       };
     }
@@ -89,8 +102,9 @@ export const useChat = () => {
   const sendMessage = async (inputValue: string) => {
     if (!inputValue.trim()) return;
 
+    const userMessageId = crypto.randomUUID();
     const userMessage: Message = {
-      id: Date.now().toString(),
+      id: userMessageId,
       text: inputValue,
       sender: 'user',
     };
@@ -98,10 +112,14 @@ export const useChat = () => {
     dispatch({ type: 'set_is_responding', payload: true });
 
     try {
-      const response = await fetch('/api/data', {
+      const chatId = "0";
+      const response = await fetch(`/api/chats/${chatId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(inputValue),
+        body: JSON.stringify({
+          userPrompt: inputValue,
+          userMessageId: userMessageId,
+        }),
       });
 
       if (!response.ok || !response.body) {
@@ -112,25 +130,31 @@ export const useChat = () => {
         dispatch(event);
       }
     } catch (error) {
-      const errorPayload = {
-        id: (Date.now() + 3).toString(),
-        text: `Error: ${error instanceof Error ? error.message : String(error)}`,
-      };
-      dispatch({ type: 'reasoning_started', payload: { ...errorPayload, id: (Date.now() + 3).toString(), chatId: (Date.now() + 3).toString() } });
+      const errorId = crypto.randomUUID();
+      const errorMessage = `Error: ${error instanceof Error ? error.message : String(error)}`;
+      dispatch({ type: 'reasoning_started', payload: { messageId: errorId, chunk: errorMessage } });
       dispatch({ type: 'stream_done' });
     }
   };
 
-  const deleteMessage = (messageId: string) => {
-    const messageToDelete = state.messages.find(m => m.id === messageId);
-    if (messageToDelete && messageToDelete.chatIds) {
-      console.log('Simulating backend delete for chatIds:', messageToDelete.chatIds);
+  const deleteMessage = (messageId: string | string[]) => {
+    if (Array.isArray(messageId)) {
+      console.log('Simulating backend delete for messageIds:', messageId);
+      dispatch({ type: 'delete_messages', payload: messageId });
+    } else {
+      console.log('Simulating backend delete for messageId:', messageId);
+      dispatch({ type: 'delete_message', payload: messageId });
     }
-    dispatch({ type: 'delete_message', payload: messageId });
   };
 
-  const editMessage = (messageId: string, newText: string) => {
-    // This will also need to be adapted
+  const editMessage = (messageId: string, newContent: string | { partId: string, newText: string }[]) => {
+    if (typeof newContent === 'string') {
+      console.log('Simulating backend edit for messageId:', messageId);
+      dispatch({ type: 'edit_message', payload: { messageId, newText: newContent } });
+    } else {
+      console.log('Simulating backend edit for reasoning parts of group:', messageId);
+      dispatch({ type: 'edit_reasoning_parts', payload: { edits: newContent } });
+    }
   };
 
   return { messages: state.messages, isAiResponding: state.isAiResponding, sendMessage, deleteMessage, editMessage };
