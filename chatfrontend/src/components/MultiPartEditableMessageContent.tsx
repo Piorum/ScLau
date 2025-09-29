@@ -45,7 +45,6 @@ const MultiPartEditableMessageContent: React.FC<MultiPartEditableMessageContentP
             value={part.text}
             onChange={(e) => handleTextChange(part.id, e.target.value)}
             className="edit-textarea"
-            rows={1}
           />
         </div>
       ))}

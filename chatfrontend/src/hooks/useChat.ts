@@ -96,13 +96,43 @@ function messageReducer(state: ChatState, action: ReducerAction): ChatState {
   }
 }
 
+function randomUUID(): string {
+  if (typeof crypto.randomUUID === "function") {
+    try {
+      return crypto.randomUUID();
+    } catch {
+      // falls through if blocked due to insecure context
+    }
+  }
+
+  const buf = new Uint8Array(16);
+  crypto.getRandomValues(buf);
+
+  // RFC4122 v4 adjustments
+  buf[6] = (buf[6] & 0x0f) | 0x40;
+  buf[8] = (buf[8] & 0x3f) | 0x80;
+
+  const hex = Array.from(buf)
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("");
+
+  return (
+    hex.slice(0, 8) + "-" +
+    hex.slice(8, 12) + "-" +
+    hex.slice(12, 16) + "-" +
+    hex.slice(16, 20) + "-" +
+    hex.slice(20)
+  );
+}
+
+
 export const useChat = () => {
   const [state, dispatch] = useReducer(messageReducer, initialState);
 
   const sendMessage = async (inputValue: string) => {
     if (!inputValue.trim()) return;
 
-    const userMessageId = crypto.randomUUID();
+    const userMessageId = randomUUID();
     const userMessage: Message = {
       id: userMessageId,
       text: inputValue,
@@ -130,7 +160,7 @@ export const useChat = () => {
         dispatch(event);
       }
     } catch (error) {
-      const errorId = crypto.randomUUID();
+      const errorId = randomUUID();
       const errorMessage = `Error: ${error instanceof Error ? error.message : String(error)}`;
       dispatch({ type: 'reasoning_started', payload: { messageId: errorId, chunk: errorMessage } });
       dispatch({ type: 'stream_done' });
