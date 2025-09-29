@@ -57,6 +57,8 @@ public class GptOss : IChatGenerator
 
             await channel.Writer.WriteAsync(new() { IsDone = true });
             channel.Writer.Complete();
+
+            await Console.Out.WriteLineAsync($"{new GptOssHistoryBuilder().WithHistory(history).WithOptions(options)}");
         });
 
         return channel;
@@ -135,14 +137,15 @@ public class GptOss : IChatGenerator
         /// </summary>
         /// <param name="sb"></param>
         /// <returns>Returns 'true' if assistant has yielded</returns>
-        public Task<bool> ProcessTurnCompletion(StringBuilder sb)
+        public async Task<bool> ProcessTurnCompletion(StringBuilder sb)
         {
             //This logic is terrible but not sure what else to do.
             string[] nonToolCallChannelNames = ["commentary", "analysis", "final"];
             if (nonToolCallChannelNames.Contains(CurrentChannel))
             {
                 UpdateHistory($"{sb}", "return");
-                return Task.FromResult(true);
+                //return conversation is over
+                return true;
             }
             else
             {
@@ -150,8 +153,31 @@ public class GptOss : IChatGenerator
 
                 //Handle tool call
                 //Append tool call reply to history
+                //Output to frontend?
+                string errorMessage = "\nError: Tools are unavailable.\n";
+                Guid messageId = Guid.NewGuid();
+                ChatMessage callReturn = new()
+                {
+                    MessageId = messageId,
+                    Role = MessageRole.Tool,
+                    Content = errorMessage
+                };
+                callReturn.ExtendedProperties.Add("role", "system");
+                callReturn.ExtendedProperties.Add("channel", "commentary");
+                History.Messages.Add(callReturn);
+                await Channel.Writer.WriteAsync
+                (
+                    new()
+                    {
+                        ContentChunk = errorMessage,
+                        ContentType = ContentType.Reasoning,
+                        MessageId = messageId,
+                        IsDone = false
+                    }
+                );
 
-                return Task.FromResult(true);
+                //return conversation is not over
+                return false;
             }
 
         }
@@ -237,10 +263,9 @@ public class GptOssHistoryBuilder
 
     private static string GetToolRoleText(ChatMessage message)
     {
-        string functionName = GetProperty(message, "function_name") ?? "unknown";
-        string functionNamespace = GetProperty(message, "function_namespace") ?? "functions";
+        string roleText = GetProperty(message, "role") ?? "system";
 
-        return $"{functionNamespace}.{functionName} to=assistant";
+        return roleText;
     }
 
     private static string? GetProperty(IExtensibleProperties obj, string key) =>
