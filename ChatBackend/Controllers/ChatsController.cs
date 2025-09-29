@@ -34,23 +34,26 @@ public class ChatsController : ControllerBase
         return Ok(history);
     }
 
+    private static readonly ChatHistory history = new();
+
     // POST /api/chats/{chatId}/messages
     [HttpPost("{chatId}/messages")]
     public async Task PostMessage(string chatId, [FromBody] PostMessageRequest request)
     {
         // For now, we'll create a dummy history.
         // Later, this will come from a database based on chatId.
-        var history = new ChatHistory();
-        history.Messages.Add(new ChatMessage
-        {
-            MessageId = request.UserMessageId,
-            Role = MessageRole.User,
-            Content = request.UserPrompt
-        });
+        if(!string.IsNullOrEmpty(request.UserPrompt))
+            history.Messages.Add(new ChatMessage
+            {
+                MessageId = request.UserMessageId,
+                Role = MessageRole.User,
+                Content = request.UserPrompt
+            });
 
         var options = request.Options ?? new ChatOptions();
         options.ModelName = "gpt-oss:20b";
         options.SystemMessage = "You are a large language model (LLM).";
+        options.ExtendedProperties.TryAdd("reasoning_level", "medium");
         options.ExtendedProperties.TryAdd("developer_message", "Fulfill the request to the best of your abilities.");
 
         LatexStreamRewriter lsr = new();
