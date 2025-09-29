@@ -15,8 +15,7 @@ export type MessageStreamEvent =
 export async function* streamChat(reader: ReadableStreamDefaultReader<Uint8Array>): AsyncGenerator<MessageStreamEvent> {
   const decoder = new TextDecoder();
   let buffer = '';
-  let reasoningMessageId: string | null = null;
-  let answerMessageId: string | null = null;
+  const handledMessageIds = new Set<string>();
 
   while (true) {
     const { done, value } = await reader.read();
@@ -39,18 +38,18 @@ export async function* streamChat(reader: ReadableStreamDefaultReader<Uint8Array
 
         if (ContentChunk) {
             if (ContentType === 0) { // Reasoning
-                if (!reasoningMessageId) {
-                    reasoningMessageId = MessageId;
+                if (!handledMessageIds.has(MessageId)) {
+                    handledMessageIds.add(MessageId);
                     yield { type: 'reasoning_started', payload: { messageId: MessageId, chunk: ContentChunk } };
                 } else {
-                    yield { type: 'reasoning_append', payload: { messageId: reasoningMessageId, chunk: ContentChunk } };
+                    yield { type: 'reasoning_append', payload: { messageId: MessageId, chunk: ContentChunk } };
                 }
             } else { // Answer
-                if (!answerMessageId) {
-                    answerMessageId = MessageId;
+                if (!handledMessageIds.has(MessageId)) {
+                    handledMessageIds.add(MessageId);
                     yield { type: 'answer_started', payload: { messageId: MessageId, chunk: ContentChunk } };
                 } else {
-                    yield { type: 'answer_append', payload: { messageId: answerMessageId, chunk: ContentChunk } };
+                    yield { type: 'answer_append', payload: { messageId: MessageId, chunk: ContentChunk } };
                 }
             }
         }

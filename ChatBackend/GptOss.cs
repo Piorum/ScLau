@@ -154,7 +154,7 @@ public class GptOss : IChatGenerator
                 //Handle tool call
                 //Append tool call reply to history
                 //Output to frontend?
-                string errorMessage = "\nError: Tools are unavailable.\n";
+                string errorMessage = "Error: Tools are unavailable.";
                 Guid messageId = Guid.NewGuid();
                 ChatMessage callReturn = new()
                 {

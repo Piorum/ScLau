@@ -6,15 +6,15 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import rehypeHighlight from 'rehype-highlight';
-import EditableMessageContent from './EditableMessageContent';
+import MultiPartEditableMessageContent from './MultiPartEditableMessageContent';
 import './CollapsibleMessage.css';
-import '../ChatMessage.css'; // Import ChatMessage.css for edit styles
-import { Message } from '../ChatMessage'; // Import Message interface
+import '../ChatMessage.css';
+import { Message } from '../types';
 
 interface CollapsibleMessageProps {
   message: Message;
-  onEdit: (messageId: string, newText: string) => void;
-  onDelete: (messageId: string) => void;
+  onEdit: (edits: { partId: string, newText: string }[]) => void;
+  onDelete: () => void;
 }
 
 const CollapsibleMessage: React.FC<CollapsibleMessageProps> = ({ message, onEdit, onDelete }) => {
@@ -29,14 +29,15 @@ const CollapsibleMessage: React.FC<CollapsibleMessageProps> = ({ message, onEdit
 
   const handleEdit = () => {
     setIsEditing(true);
+    setIsExpanded(true);
   };
 
   const handleDelete = () => {
-    onDelete(message.id);
+    onDelete();
   };
 
-  const handleSave = (newText: string) => {
-    onEdit(message.id, newText);
+  const handleSave = (edits: { partId: string, newText: string }[]) => {
+    onEdit(edits);
     setIsEditing(false);
   };
 
@@ -47,10 +48,10 @@ const CollapsibleMessage: React.FC<CollapsibleMessageProps> = ({ message, onEdit
   if (isEditing) {
     return (
       <div className={`chat-message ${message.sender} editing`}>
-        <EditableMessageContent 
-          initialText={message.text} 
-          onSave={handleSave} 
-          onCancel={handleCancel} 
+        <MultiPartEditableMessageContent
+          parts={message.parts!}
+          onSave={handleSave}
+          onCancel={handleCancel}
         />
       </div>
     );
@@ -64,10 +65,14 @@ const CollapsibleMessage: React.FC<CollapsibleMessageProps> = ({ message, onEdit
         {message.isStreaming && <LoadingIcon />}
       </div>
       <div className="collapsible-content">
-        <ReactMarkdown
-          remarkPlugins={[remarkGfm, remarkMath]}
-          rehypePlugins={[rehypeKatex, rehypeHighlight]}
-        >{message.text}</ReactMarkdown>
+        {message.parts?.map((part, index) => (
+          <div key={part.id} style={{ borderBottom: index < message.parts!.length - 1 ? '1px solid var(--color-border)' : 'none' }}>
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm, remarkMath]}
+              rehypePlugins={[rehypeKatex, rehypeHighlight]}
+            >{part.text}</ReactMarkdown>
+          </div>
+        ))}
       </div>
       {isExpanded && !message.isStreaming && <MessageActions onEdit={handleEdit} onDelete={handleDelete} />}
     </div>
