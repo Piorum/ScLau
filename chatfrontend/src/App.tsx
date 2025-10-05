@@ -113,7 +113,9 @@ function App() {
 
   const handleNewChat = () => {
     startNewChat();
-    closeMenu();
+    if (window.innerWidth < 768) {
+      closeMenu();
+    }
   };
 
   return (

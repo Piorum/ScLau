@@ -19,19 +19,17 @@ const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose, onSettingsClick, c
     <>
       <div className={`side-menu-overlay ${isOpen ? 'open' : ''}`} onClick={onClose}></div>
       <div className={`side-menu ${isOpen ? 'open' : ''}`}>
-        <div className="side-menu-header">
-          <button className="new-chat-button" onClick={onNewChat}>
-            <NewChatIcon />
-            <span className="new-chat-text">New Chat</span>
-          </button>
-        </div>
         <div className="side-menu-content">
+          <button className="menu-button" onClick={onNewChat}>
+            <span className="menu-button-text">New Chat</span>
+            <NewChatIcon />
+          </button>
           {chats
             .sort((a, b) => b.lastMessage - a.lastMessage)
             .map(chat => (
-            <div key={chat.chatId} onClick={() => onChatSelect(chat.chatId)} className={`chat-list-item ${chat.chatId === currentChatId ? 'active' : ''}`}>
-              Chat {new Date(chat.lastMessage * 1000).toLocaleString()}
-            </div>
+            <button key={chat.chatId} onClick={() => onChatSelect(chat.chatId)} className={`menu-button ${chat.chatId === currentChatId ? 'active' : ''}`}>
+              <span className="menu-button-text">Chat {new Date(chat.lastMessage * 1000).toLocaleString()}</span>
+            </button>
           ))}
         </div>
         <div className="side-menu-footer">
