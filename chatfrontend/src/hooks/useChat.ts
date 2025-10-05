@@ -1,5 +1,5 @@
 import { useReducer, useCallback } from 'react';
-import { Message, ChatListItem, ChatHistory as ChatHistoryType, BackendMessage, Sender } from '../types';
+import { Message, ChatListItem, BackendMessage, Sender } from '../types';
 import { streamChat, MessageStreamEvent } from '../utils/streamParser';
 
 type ChatState = {
@@ -159,32 +159,59 @@ export const useChat = () => {
 
   const loadChatHistory = useCallback(async (chatId: string) => {
     dispatch({ type: 'clear_messages' });
+    dispatch({ type: 'set_chat_id', payload: chatId });
     try {
       const response = await fetch(`/api/chats/${chatId}`);
-      if (!response.ok) {
+      if (!response.ok || !response.body) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      const history: ChatHistoryType = await response.json();
-      const messages: Message[] = history.messages.map((msg: BackendMessage) => {
-          let sender: Sender = 'ai-answer';
-          if (msg.role === 0) { // User
-              sender = 'user';
-          } else if (msg.role === 1) { // Assistant
-              if (msg.contentType === 0) { // Reasoning
-                  sender = 'ai-reasoning';
-              } else { // Answer
-                  sender = 'ai-answer';
-              }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          break;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+
+          try {
+            const msg: BackendMessage = JSON.parse(line);
+            
+            let sender: Sender = 'ai-answer';
+            if (msg.Role === 0) { // User
+                sender = 'user';
+            } else if (msg.Role === 1) { // Assistant
+                if (msg.ContentType === 0) { // Reasoning
+                    sender = 'ai-reasoning';
+                } else { // Answer
+                    sender = 'ai-answer';
+                }
+            } else if (msg.Role === 2) { // Tool
+                sender = 'ai-reasoning';
+            }
+
+            const message: Message = {
+                id: msg.MessageId,
+                text: msg.Content,
+                sender: sender,
+            };
+
+            dispatch({ type: 'add_user_message', payload: message });
+          } catch (e) {
+            console.error("Error parsing JSON line:", e, "Line was:", line);
           }
-  
-          return {
-              id: msg.messageId,
-              text: msg.content,
-              sender: sender,
-          };
-      });
-      dispatch({ type: 'set_chat_history', payload: messages });
-      dispatch({ type: 'set_chat_id', payload: chatId });
+        }
+      }
+
     } catch (error) {
       console.error(`Failed to load chat history for ${chatId}:`, error);
     }

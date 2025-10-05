@@ -19,10 +19,10 @@ export interface ChatListItem {
 }
 
 export interface BackendMessage {
-    messageId: string;
-    role: number;
-    content: string;
-    contentType: number;
+    MessageId: string;
+    Role: number;
+    Content: string;
+    ContentType: number;
 }
 
 export interface ChatHistory {
