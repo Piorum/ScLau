@@ -160,7 +160,8 @@ public class GptOss : IChatGenerator
                 {
                     MessageId = messageId,
                     Role = MessageRole.Tool,
-                    Content = errorMessage
+                    Content = errorMessage,
+                    ContentType = ContentType.Reasoning
                 };
                 callReturn.ExtendedProperties.Add("role", "system");
                 callReturn.ExtendedProperties.Add("channel", "commentary");
@@ -191,8 +192,12 @@ public class GptOss : IChatGenerator
                 Content = content
             };
 
-            if(CurrentChannel is not null)
+            if (CurrentChannel is not null)
+            {
                 message.ExtendedProperties.Add("channel", CurrentChannel);
+                if (CurrentChannel != "final")
+                    message.ContentType = ContentType.Reasoning;
+            }
             if (endToken is not null)
                 message.ExtendedProperties.Add("end_token", endToken);
 

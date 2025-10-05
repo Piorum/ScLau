@@ -7,9 +7,3 @@ public class ModelResponse
     public string ContentChunk { get; set; } = "";
     public bool IsDone { get; set; } = false;
 }
-
-public enum ContentType
-{
-    Reasoning,
-    Answer
-}
