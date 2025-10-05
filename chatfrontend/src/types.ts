@@ -22,6 +22,7 @@ export interface BackendMessage {
     messageId: string;
     role: number;
     content: string;
+    contentType: number;
 }
 
 export interface ChatHistory {

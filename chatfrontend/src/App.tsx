@@ -106,7 +106,9 @@ function App() {
     if (selectedChatId !== chatId) {
         loadChatHistory(selectedChatId);
     }
-    closeMenu();
+    if (window.innerWidth < 768) {
+      closeMenu();
+    }
   };
 
   const handleNewChat = () => {

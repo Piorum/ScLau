@@ -1,5 +1,5 @@
 import { useReducer, useCallback } from 'react';
-import { Message, ChatListItem, ChatHistory as ChatHistoryType, BackendMessage } from '../types';
+import { Message, ChatListItem, ChatHistory as ChatHistoryType, BackendMessage, Sender } from '../types';
 import { streamChat, MessageStreamEvent } from '../utils/streamParser';
 
 type ChatState = {
@@ -165,11 +165,24 @@ export const useChat = () => {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const history: ChatHistoryType = await response.json();
-      const messages: Message[] = history.messages.map((msg: BackendMessage) => ({
-          id: msg.messageId,
-          text: msg.content,
-          sender: msg.role === 0 ? 'user' : 'ai-answer',
-      }));
+      const messages: Message[] = history.messages.map((msg: BackendMessage) => {
+          let sender: Sender = 'ai-answer';
+          if (msg.role === 0) { // User
+              sender = 'user';
+          } else if (msg.role === 1) { // Assistant
+              if (msg.contentType === 0) { // Reasoning
+                  sender = 'ai-reasoning';
+              } else { // Answer
+                  sender = 'ai-answer';
+              }
+          }
+  
+          return {
+              id: msg.messageId,
+              text: msg.content,
+              sender: sender,
+          };
+      });
       dispatch({ type: 'set_chat_history', payload: messages });
       dispatch({ type: 'set_chat_id', payload: chatId });
     } catch (error) {
