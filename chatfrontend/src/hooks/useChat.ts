@@ -1,15 +1,19 @@
-import { useReducer } from 'react';
-import { Message } from '../types';
+import { useReducer, useCallback } from 'react';
+import { Message, ChatListItem, ChatHistory as ChatHistoryType, BackendMessage } from '../types';
 import { streamChat, MessageStreamEvent } from '../utils/streamParser';
 
 type ChatState = {
   messages: Message[];
   isAiResponding: boolean;
+  chatId: string | null;
+  chats: ChatListItem[];
 };
 
 const initialState: ChatState = {
   messages: [],
   isAiResponding: false,
+  chatId: null,
+  chats: [],
 };
 
 type ReducerAction =
@@ -19,8 +23,11 @@ type ReducerAction =
   | { type: 'delete_message'; payload: string }
   | { type: 'delete_messages'; payload: string[] }
   | { type: 'edit_message', payload: { messageId: string, newText: string } }
-  | { type: 'edit_reasoning_parts', payload: { edits: { partId: string, newText: string }[] } };
-
+  | { type: 'edit_reasoning_parts', payload: { edits: { partId: string, newText: string }[] } }
+  | { type: 'set_chat_id'; payload: string | null }
+  | { type: 'set_chats'; payload: ChatListItem[] }
+  | { type: 'set_chat_history'; payload: Message[] }
+  | { type: 'clear_messages' };
 
 function messageReducer(state: ChatState, action: ReducerAction): ChatState {
   switch (action.type) {
@@ -91,6 +98,14 @@ function messageReducer(state: ChatState, action: ReducerAction): ChatState {
         messages: state.messages.map(m => ({ ...m, isStreaming: false })),
       };
     }
+    case 'set_chat_id':
+      return { ...state, chatId: action.payload };
+    case 'set_chats':
+      return { ...state, chats: action.payload };
+    case 'set_chat_history':
+      return { ...state, messages: action.payload };
+    case 'clear_messages':
+      return { ...state, messages: [] };
     default:
       return state;
   }
@@ -129,7 +144,45 @@ function randomUUID(): string {
 export const useChat = () => {
   const [state, dispatch] = useReducer(messageReducer, initialState);
 
-  const sendMessage = async (inputValue: string) => {
+  const loadChats = useCallback(async () => {
+    try {
+      const response = await fetch('/api/chats');
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const chats: ChatListItem[] = await response.json();
+      dispatch({ type: 'set_chats', payload: chats });
+    } catch (error) {
+      console.error("Failed to load chats:", error);
+    }
+  }, []);
+
+  const loadChatHistory = useCallback(async (chatId: string) => {
+    dispatch({ type: 'clear_messages' });
+    try {
+      const response = await fetch(`/api/chats/${chatId}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const history: ChatHistoryType = await response.json();
+      const messages: Message[] = history.messages.map((msg: BackendMessage) => ({
+          id: msg.messageId,
+          text: msg.content,
+          sender: msg.role === 0 ? 'user' : 'ai-answer',
+      }));
+      dispatch({ type: 'set_chat_history', payload: messages });
+      dispatch({ type: 'set_chat_id', payload: chatId });
+    } catch (error) {
+      console.error(`Failed to load chat history for ${chatId}:`, error);
+    }
+  }, []);
+
+  const startNewChat = useCallback(() => {
+    dispatch({ type: 'clear_messages' });
+    dispatch({ type: 'set_chat_id', payload: null });
+  }, []);
+
+  const sendMessage = useCallback(async (inputValue: string) => {
     if (!inputValue.trim()) return;
 
     const userMessageId = randomUUID();
@@ -141,9 +194,14 @@ export const useChat = () => {
     dispatch({ type: 'add_user_message', payload: userMessage });
     dispatch({ type: 'set_is_responding', payload: true });
 
+    let currentChatId = state.chatId;
+    if (!currentChatId) {
+      currentChatId = randomUUID();
+      dispatch({ type: 'set_chat_id', payload: currentChatId });
+    }
+
     try {
-      const chatId = "0";
-      const response = await fetch(`/api/chats/${chatId}/messages`, {
+      const response = await fetch(`/api/chats/${currentChatId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -159,15 +217,16 @@ export const useChat = () => {
       for await (const event of streamChat(response.body.getReader())) {
         dispatch(event);
       }
+      loadChats();
     } catch (error) {
       const errorId = randomUUID();
       const errorMessage = `Error: ${error instanceof Error ? error.message : String(error)}`;
       dispatch({ type: 'reasoning_started', payload: { messageId: errorId, chunk: errorMessage } });
       dispatch({ type: 'stream_done' });
     }
-  };
+  }, [state.chatId, loadChats]);
 
-  const deleteMessage = (messageId: string | string[]) => {
+  const deleteMessage = useCallback((messageId: string | string[]) => {
     if (Array.isArray(messageId)) {
       console.log('Simulating backend delete for messageIds:', messageId);
       dispatch({ type: 'delete_messages', payload: messageId });
@@ -175,9 +234,9 @@ export const useChat = () => {
       console.log('Simulating backend delete for messageId:', messageId);
       dispatch({ type: 'delete_message', payload: messageId });
     }
-  };
+  }, []);
 
-  const editMessage = (messageId: string, newContent: string | { partId: string, newText: string }[]) => {
+  const editMessage = useCallback((messageId: string, newContent: string | { partId: string, newText: string }[]) => {
     if (typeof newContent === 'string') {
       console.log('Simulating backend edit for messageId:', messageId);
       dispatch({ type: 'edit_message', payload: { messageId, newText: newContent } });
@@ -185,7 +244,7 @@ export const useChat = () => {
       console.log('Simulating backend edit for reasoning parts of group:', messageId);
       dispatch({ type: 'edit_reasoning_parts', payload: { edits: newContent } });
     }
-  };
+  }, []);
 
-  return { messages: state.messages, isAiResponding: state.isAiResponding, sendMessage, deleteMessage, editMessage };
+  return { ...state, sendMessage, deleteMessage, editMessage, loadChats, loadChatHistory, startNewChat };
 };

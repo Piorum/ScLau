@@ -44,17 +44,50 @@
 
 .side-menu-header {
   border-bottom: 1px solid var(--color-border);
-  height: 25px;
+  height: auto;
   padding: 9px;
 }
 
-.side-menu-header h2 {
-  margin: 0;
-  font-size: 1.2rem;
+.new-chat-button {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-main);
+  display: flex;
+  align-items: center;
+  padding: 10px 15px;
+  width: 100%;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.new-chat-button:hover {
+  background-color: var(--color-component-bg);
+}
+
+.new-chat-text {
+  margin-left: 10px;
 }
 
 .side-menu-content {
   flex-grow: 1;
+  overflow-y: auto;
+}
+
+.chat-list-item {
+  padding: 10px 15px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-list-item:hover {
+  background-color: var(--color-component-bg);
+}
+
+.chat-list-item.active {
+  background-color: var(--color-darkest-bg);
 }
 
 .side-menu-footer {

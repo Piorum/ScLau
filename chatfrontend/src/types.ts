@@ -12,3 +12,18 @@ export interface Message {
     text: string;
     parts?: MessagePart[];
 }
+
+export interface ChatListItem {
+    chatId: string;
+    lastMessage: number;
+}
+
+export interface BackendMessage {
+    messageId: string;
+    role: number;
+    content: string;
+}
+
+export interface ChatHistory {
+    messages: BackendMessage[];
+}

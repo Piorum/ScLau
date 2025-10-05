@@ -13,9 +13,25 @@ function App() {
   const [inputValue, setInputValue] = useState('');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const { messages, isAiResponding, sendMessage, deleteMessage, editMessage } = useChat();
+  const {
+    messages, 
+    isAiResponding, 
+    sendMessage, 
+    deleteMessage, 
+    editMessage,
+    chats,
+    chatId,
+    loadChats,
+    loadChatHistory,
+    startNewChat
+  } = useChat();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { theme } = useTheme();
+
+  useEffect(() => {
+    loadChats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const existingLink = document.getElementById('highlight-theme');
@@ -86,9 +102,29 @@ function App() {
     }
   };
 
+  const handleSelectChat = (selectedChatId: string) => {
+    if (selectedChatId !== chatId) {
+        loadChatHistory(selectedChatId);
+    }
+    closeMenu();
+  };
+
+  const handleNewChat = () => {
+    startNewChat();
+    closeMenu();
+  };
+
   return (
     <div className="App">
-      <SideMenu isOpen={isMenuOpen} onClose={closeMenu} onSettingsClick={openSettings} />
+      <SideMenu 
+        isOpen={isMenuOpen} 
+        onClose={closeMenu} 
+        onSettingsClick={openSettings}
+        chats={chats}
+        onChatSelect={handleSelectChat}
+        onNewChat={handleNewChat}
+        currentChatId={chatId}
+      />
       <SettingsMenu isOpen={isSettingsOpen} onClose={closeSettings} />
       <div className="main-content-wrapper">
         <TopBar onMenuToggle={toggleMenu} />

@@ -1,20 +1,38 @@
 import React from 'react';
 import SettingsIcon from '../icons/SettingsIcon';
 import './SideMenu.css';
+import { ChatListItem } from '../types';
+import NewChatIcon from '../icons/NewChatIcon';
 
 interface SideMenuProps {
   isOpen: boolean;
   onClose: () => void;
   onSettingsClick: () => void;
+  chats: ChatListItem[];
+  onChatSelect: (chatId: string) => void;
+  onNewChat: () => void;
+  currentChatId: string | null;
 }
 
-const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose, onSettingsClick }) => {
+const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose, onSettingsClick, chats, onChatSelect, onNewChat, currentChatId }) => {
   return (
     <>
       <div className={`side-menu-overlay ${isOpen ? 'open' : ''}`} onClick={onClose}></div>
       <div className={`side-menu ${isOpen ? 'open' : ''}`}>
+        <div className="side-menu-header">
+          <button className="new-chat-button" onClick={onNewChat}>
+            <NewChatIcon />
+            <span className="new-chat-text">New Chat</span>
+          </button>
+        </div>
         <div className="side-menu-content">
-          {/* Placeholder for future menu items */}
+          {chats
+            .sort((a, b) => b.lastMessage - a.lastMessage)
+            .map(chat => (
+            <div key={chat.chatId} onClick={() => onChatSelect(chat.chatId)} className={`chat-list-item ${chat.chatId === currentChatId ? 'active' : ''}`}>
+              Chat {new Date(chat.lastMessage * 1000).toLocaleString()}
+            </div>
+          ))}
         </div>
         <div className="side-menu-footer">
           <button className="settings-button" onClick={onSettingsClick}>
