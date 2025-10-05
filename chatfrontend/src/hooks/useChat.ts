@@ -7,6 +7,7 @@ type ChatState = {
   isAiResponding: boolean;
   chatId: string | null;
   chats: ChatListItem[];
+  historyLoading: boolean;
 };
 
 const initialState: ChatState = {
@@ -14,6 +15,7 @@ const initialState: ChatState = {
   isAiResponding: false,
   chatId: null,
   chats: [],
+  historyLoading: false,
 };
 
 type ReducerAction =
@@ -27,7 +29,8 @@ type ReducerAction =
   | { type: 'set_chat_id'; payload: string | null }
   | { type: 'set_chats'; payload: ChatListItem[] }
   | { type: 'set_chat_history'; payload: Message[] }
-  | { type: 'clear_messages' };
+  | { type: 'clear_messages' }
+  | { type: 'set_history_loading'; payload: boolean };
 
 function messageReducer(state: ChatState, action: ReducerAction): ChatState {
   switch (action.type) {
@@ -106,6 +109,8 @@ function messageReducer(state: ChatState, action: ReducerAction): ChatState {
       return { ...state, messages: action.payload };
     case 'clear_messages':
       return { ...state, messages: [] };
+    case 'set_history_loading':
+      return { ...state, historyLoading: action.payload };
     default:
       return state;
   }
@@ -160,6 +165,7 @@ export const useChat = () => {
   const loadChatHistory = useCallback(async (chatId: string) => {
     dispatch({ type: 'clear_messages' });
     dispatch({ type: 'set_chat_id', payload: chatId });
+    dispatch({ type: 'set_history_loading', payload: true });
     try {
       const response = await fetch(`/api/chats/${chatId}`);
       if (!response.ok || !response.body) {
@@ -173,6 +179,7 @@ export const useChat = () => {
       while (true) {
         const { done, value } = await reader.read();
         if (done) {
+          dispatch({ type: 'set_history_loading', payload: false });
           break;
         }
 
@@ -214,6 +221,7 @@ export const useChat = () => {
 
     } catch (error) {
       console.error(`Failed to load chat history for ${chatId}:`, error);
+      dispatch({ type: 'set_history_loading', payload: false });
     }
   }, []);
 

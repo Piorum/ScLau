@@ -9,19 +9,28 @@ interface ChatHistoryProps {
   isAiResponding: boolean;
   deleteMessage: (messageId: string | string[]) => void;
   editMessage: (messageId: string, newContent: string | { partId: string, newText: string }[]) => void;
+  historyLoading: boolean;
 }
 
-const ChatHistory: React.FC<ChatHistoryProps> = ({ messages, isAiResponding, deleteMessage, editMessage }) => {
+const ChatHistory: React.FC<ChatHistoryProps> = ({ messages, isAiResponding, deleteMessage, editMessage, historyLoading }) => {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const userScrolled = useRef(false);
 
   const handleWheel = () => {
-    userScrolled.current = true;
+    if (!historyLoading) {
+      userScrolled.current = true;
+    }
   };
 
   useLayoutEffect(() => {
     const container = chatContainerRef.current;
     if (!container) return;
+
+    if (historyLoading) {
+        container.scrollTop = container.scrollHeight;
+        userScrolled.current = false;
+        return;
+    }
 
     const lastMessage = messages[messages.length - 1];
     if (!lastMessage) return;
@@ -39,7 +48,7 @@ const ChatHistory: React.FC<ChatHistoryProps> = ({ messages, isAiResponding, del
         }
       }
     }
-  }, [messages]);
+  }, [messages, historyLoading]);
 
   const groupedMessages: Message[] = [];
   let currentReasoningGroup: Message[] = [];
