@@ -4,7 +4,7 @@ namespace ChatBackend.Models;
 
 public enum MessageRole { User, Assistant, Tool }
 
-public class ChatMessage : IExtensibleProperties
+public record ChatMessage : IExtensibleProperties
 {
     public Guid MessageId { get; set; }
     public MessageRole Role { get; set; }

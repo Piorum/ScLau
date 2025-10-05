@@ -29,8 +29,10 @@ public class ChatsController : ControllerBase
 
     // GET /api/chats/{chatId}
     [HttpGet("{chatId}")]
-    public IActionResult GetChat(string chatId)
+    public async Task GetChat(string chatId)
     {
+        Response.ContentType = "application/x-ndjson";
+
         _chats.TryGetValue(chatId, out var history);
         if (history is null)
         {
@@ -38,7 +40,13 @@ public class ChatsController : ControllerBase
             _chats.TryAdd(chatId, history);
         }
 
-        return Ok(history);
+        foreach (var message in history.Messages)
+        {
+            var lsrMessage = message with { Content = LatexStreamRewriter.ProcessString(message.Content) };
+            var jsonChunk = JsonSerializer.Serialize(lsrMessage);
+            await Response.WriteAsync(jsonChunk + "\n");
+            await Response.Body.FlushAsync();
+        }
     }
 
 
@@ -115,6 +123,12 @@ public class ChatsController : ControllerBase
                     sb.Append(c);
 
             return $"{sb}";
+        }
+
+        public static string ProcessString(string input)
+        {
+            var lsr = new LatexStreamRewriter();
+            return lsr.ProcessChunk(input);
         }
     }
 }
