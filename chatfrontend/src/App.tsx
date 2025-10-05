@@ -20,7 +20,7 @@ function App() {
     deleteMessage, 
     editMessage,
     chats,
-    chatId,
+    activeChatId: chatId,
     loadChats,
     loadChatHistory,
     historyLoading,
