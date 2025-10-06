@@ -1,4 +1,4 @@
-import { useReducer, useCallback } from 'react';
+import { useReducer, useCallback, useMemo } from 'react';
 import { Message, ChatListItem, BackendMessage, Sender } from '../types';
 import { streamChat, MessageStreamEvent } from '../utils/streamParser';
 
@@ -180,8 +180,15 @@ function randomUUID(): string {
 export const useChat = () => {
   const [state, dispatch] = useReducer(messageReducer, initialState);
 
-  const messages = state.activeChatId ? state.chatMessages[state.activeChatId] || [] : [];
-  const isAiResponding = state.activeChatId ? state.isAiResponding[state.activeChatId] || false : false;
+  const messages = useMemo(() => 
+    state.activeChatId ? state.chatMessages[state.activeChatId] || [] : [],
+    [state.activeChatId, state.chatMessages]
+  );
+
+  const isAiResponding = useMemo(() =>
+    state.activeChatId ? state.isAiResponding[state.activeChatId] || false : false,
+    [state.activeChatId, state.isAiResponding]
+  );
 
   const loadChats = useCallback(async () => {
     try {
@@ -338,5 +345,17 @@ export const useChat = () => {
     }
   }, []);
 
-  return { ...state, messages, isAiResponding, sendMessage, deleteMessage, editMessage, loadChats, loadChatHistory, startNewChat };
+  return {
+    chats: state.chats,
+    activeChatId: state.activeChatId,
+    historyLoading: state.historyLoading,
+    messages, 
+    isAiResponding, 
+    sendMessage, 
+    deleteMessage, 
+    editMessage, 
+    loadChats, 
+    loadChatHistory, 
+    startNewChat 
+  };
 };
