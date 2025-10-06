@@ -1,8 +1,16 @@
-import React, { useLayoutEffect, useRef } from 'react';
+import React, { useLayoutEffect, useRef, useEffect } from 'react';
 import ChatMessage from './ChatMessage';
 import LoadingIcon from './components/LoadingIcon';
 import './ChatHistory.css';
 import { Message } from './types';
+
+function usePrevious<T>(value: T) {
+    const ref = useRef<T | undefined>(undefined);
+    useEffect(() => {
+      ref.current = value;
+    });
+    return ref.current;
+}
 
 interface ChatHistoryProps {
   messages: Message[];
@@ -10,45 +18,37 @@ interface ChatHistoryProps {
   deleteMessage: (messageId: string | string[]) => void;
   editMessage: (messageId: string, newContent: string | { partId: string, newText: string }[]) => void;
   historyLoading: boolean;
+  chatId: string | null;
 }
 
-const ChatHistory: React.FC<ChatHistoryProps> = ({ messages, isAiResponding, deleteMessage, editMessage, historyLoading }) => {
+const ChatHistory: React.FC<ChatHistoryProps> = ({ messages, isAiResponding, deleteMessage, editMessage, historyLoading, chatId }) => {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const userScrolled = useRef(false);
+  const prevChatId = usePrevious(chatId);
 
   const handleWheel = () => {
-    if (!historyLoading) {
-      userScrolled.current = true;
-    }
+    userScrolled.current = true;
   };
 
   useLayoutEffect(() => {
     const container = chatContainerRef.current;
     if (!container) return;
 
-    if (historyLoading) {
-        container.scrollTop = container.scrollHeight;
-        userScrolled.current = false;
-        return;
-    }
-
+    const chatSwitched = prevChatId !== chatId;
     const lastMessage = messages[messages.length - 1];
-    if (!lastMessage) return;
+    const isUserMessage = lastMessage?.sender === 'user';
 
-    const isUserMessage = lastMessage.sender === 'user';
-
+    if (chatSwitched) {
+      userScrolled.current = false;
+    }
     if (isUserMessage) {
       userScrolled.current = false;
-      container.scrollTop = container.scrollHeight;
-    } else {
-      if (!userScrolled.current) {
-        const lastElement = container.lastElementChild as HTMLElement;
-        if (lastElement) {
-          lastElement.scrollIntoView({ behavior: 'smooth', block: 'end' });
-        }
-      }
     }
-  }, [messages, historyLoading]);
+
+    if (chatSwitched || isUserMessage || !userScrolled.current) {
+      container.scrollTop = container.scrollHeight;
+    }
+  }, [messages, chatId, prevChatId]);
 
   const groupedMessages: Message[] = [];
   let currentReasoningGroup: Message[] = [];

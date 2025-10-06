@@ -134,7 +134,7 @@ function App() {
       <div className="main-content-wrapper">
         <TopBar onMenuToggle={toggleMenu} />
         <div className="chat-area-wrapper">
-            <ChatHistory messages={messages} isAiResponding={isAiResponding} deleteMessage={deleteMessage} editMessage={editMessage} historyLoading={historyLoading} />
+            <ChatHistory messages={messages} isAiResponding={isAiResponding} deleteMessage={deleteMessage} editMessage={editMessage} historyLoading={historyLoading} chatId={chatId} />
             <div className="input-area">
               <textarea
                 ref={textareaRef}
