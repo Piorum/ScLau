@@ -43,6 +43,11 @@
   display: flex;
   flex-direction: column;
   gap: 5px;
+  scrollbar-width: none;
+}
+
+.side-menu-content::-webkit-scrollbar {
+  display: none;
 }
 
 .menu-button {
@@ -63,6 +68,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   gap: 10px;
+  flex-shrink: 0;
 }
 
 .menu-button:first-child {

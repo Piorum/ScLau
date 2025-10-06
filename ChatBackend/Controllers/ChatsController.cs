@@ -10,7 +10,19 @@ namespace ChatBackend.Controllers;
 [Route("api/[controller]")]
 public class ChatsController : ControllerBase
 {
-    //Temp
+    static ChatsController()
+    {
+        //Temp
+        //Load real history from DB here
+        for (int i = 0; i < 100; i++)
+        {
+            ChatHistory hist = new();
+            hist.Messages.Add(new() { Content = $"Chat {i}", ContentType = ContentType.Answer, Role = MessageRole.Assistant });
+            Guid guid = Guid.NewGuid();
+            _chats.TryAdd(guid.ToString(), hist);
+        }
+    }
+
     private static readonly ConcurrentDictionary<string, ChatHistory> _chats = [];
     private static readonly GptOss _chatGenerator = new();
 
