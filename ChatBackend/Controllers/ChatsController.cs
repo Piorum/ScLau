@@ -12,15 +12,7 @@ public class ChatsController : ControllerBase
 {
     static ChatsController()
     {
-        //Temp
-        //Load real history from DB here
-        for (int i = 0; i < 100; i++)
-        {
-            ChatHistory hist = new();
-            hist.Messages.Add(new() { Content = $"Chat {i}", ContentType = ContentType.Answer, Role = MessageRole.Assistant });
-            Guid guid = Guid.NewGuid();
-            _chats.TryAdd(guid.ToString(), hist);
-        }
+        //Load real history from DB here into _chats?
     }
 
     private static readonly ConcurrentDictionary<string, ChatHistory> _chats = [];
@@ -84,9 +76,9 @@ public class ChatsController : ControllerBase
 
         var options = request.Options ?? new ChatOptions();
         options.ModelName = "gpt-oss:20b";
-        options.SystemMessage = "You are a large language model (LLM).";
+        options.SystemMessage = "Fulfill the request to the best of your abilities.";
         options.ExtendedProperties.TryAdd("reasoning_level", "medium");
-        options.ExtendedProperties.TryAdd("developer_message", "Fulfill the request to the best of your abilities.");
+        options.ExtendedProperties.TryAdd("meta_information", "You are a large language model.");
 
         LatexStreamRewriter lsr = new();
         Response.ContentType = "application/x-ndjson";

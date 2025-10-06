@@ -80,8 +80,7 @@
 }
 
 .menu-button.active {
-  background-color: var(--color-darkest-bg);
-  border-color: var(--color-darkest-bg);
+  background-color: var(--color-component-bg);
 }
 
 .menu-button-text {

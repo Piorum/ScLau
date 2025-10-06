@@ -237,11 +237,10 @@ public class GptOssHistoryBuilder
         {
             string reasoningLevel = GetProperty(options, "reasoning_level") ?? "low";
 
-            string? developerMessage = GetProperty(options, "developer_message");
+            string? metaInformation = GetProperty(options, "meta_information");
 
-            Append("system", $"{options.SystemMessage}\nKnowledge cutoff: 2024-06\nCurrent date: {DateTime.Now:yyyy-MM-dd}\n\nReasoning: {reasoningLevel}\n\n# Valid channels: analysis, commentary, final. Channel must be included for every message.");
-            if (developerMessage is not null)
-                Append("developer", $"# Instructions\n\n{developerMessage}\n\n");
+            Append("system", $"{metaInformation ?? "You are a large language model."}\nKnowledge cutoff: 2024-06\nCurrent date: {DateTime.Now:yyyy-MM-dd}\n\nReasoning: {reasoningLevel}\n\n# Valid channels: analysis, commentary, final. Channel must be included for every message.");
+            Append("developer", $"# Instructions\n\n{options.SystemMessage}\n\n");
         }
 
         if (history is not null)

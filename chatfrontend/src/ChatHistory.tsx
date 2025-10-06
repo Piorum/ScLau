@@ -21,7 +21,7 @@ interface ChatHistoryProps {
   chatId: string | null;
 }
 
-const ChatHistory: React.FC<ChatHistoryProps> = ({ messages, isAiResponding, deleteMessage, editMessage, historyLoading, chatId }) => {
+const ChatHistory: React.FC<ChatHistoryProps> = ({ messages, isAiResponding, deleteMessage, editMessage, chatId }) => {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const userScrolled = useRef(false);
   const prevChatId = usePrevious(chatId);

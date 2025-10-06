@@ -20,7 +20,7 @@ const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose, onSettingsClick, c
       <div className={`side-menu-overlay ${isOpen ? 'open' : ''}`} onClick={onClose}></div>
       <div className={`side-menu ${isOpen ? 'open' : ''}`}>
         <div className="side-menu-content">
-          <button className="menu-button" onClick={onNewChat}>
+          <button onClick={onNewChat} className = {`menu-button ${currentChatId === null ? 'active' : ''}`}>
             <span className="menu-button-text">New Chat</span>
             <NewChatIcon />
           </button>
