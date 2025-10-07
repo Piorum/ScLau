@@ -4,7 +4,7 @@
   overflow-y: auto;
   padding: 10px 10px 0px;
   display: flex;
-  flex-direction: column;
+  flex-direction: column-reverse;
   background-color: var(--color-component-bg);
   border-radius: 15px;
   margin: 10px 10px 0px;

@@ -23,7 +23,6 @@ function App() {
     activeChatId: chatId,
     loadChats,
     loadChatHistory,
-    historyLoading,
     startNewChat
   } = useChat();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -134,7 +133,7 @@ function App() {
       <div className="main-content-wrapper">
         <TopBar onMenuToggle={toggleMenu} />
         <div className="chat-area-wrapper">
-            <ChatHistory messages={messages} isAiResponding={isAiResponding} deleteMessage={deleteMessage} editMessage={editMessage} historyLoading={historyLoading} chatId={chatId} />
+            <ChatHistory messages={messages} isAiResponding={isAiResponding} deleteMessage={deleteMessage} editMessage={editMessage} />
             <div className="input-area">
               <textarea
                 ref={textareaRef}

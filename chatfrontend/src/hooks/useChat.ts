@@ -7,7 +7,6 @@ type ChatState = {
   activeChatId: string | null;
   isAiResponding: { [key: string]: boolean };
   chats: ChatListItem[];
-  historyLoading: boolean;
 };
 
 const initialState: ChatState = {
@@ -15,7 +14,6 @@ const initialState: ChatState = {
   activeChatId: null,
   isAiResponding: {},
   chats: [],
-  historyLoading: false,
 };
 
 type ReducerAction =
@@ -29,8 +27,7 @@ type ReducerAction =
   | { type: 'set_active_chat_id', payload: string | null }
   | { type: 'set_chats', payload: ChatListItem[] }
   | { type: 'add_chat', payload: ChatListItem }
-  | { type: 'clear_chat_history', chatId: string }
-  | { type: 'set_history_loading', payload: boolean };
+  | { type: 'clear_chat_history', chatId: string };
 
 function messageReducer(state: ChatState, action: ReducerAction): ChatState {
   switch (action.type) {
@@ -140,8 +137,6 @@ function messageReducer(state: ChatState, action: ReducerAction): ChatState {
             ...state,
             chatMessages: { ...state.chatMessages, [action.chatId]: [] }
         };
-    case 'set_history_loading':
-      return { ...state, historyLoading: action.payload };
     default:
       return state;
   }
@@ -210,7 +205,6 @@ export const useChat = () => {
     }
 
     dispatch({ type: 'clear_chat_history', chatId });
-    dispatch({ type: 'set_history_loading', payload: true });
     try {
       const response = await fetch(`/api/chats/${chatId}`);
       if (!response.ok || !response.body) {
@@ -224,7 +218,6 @@ export const useChat = () => {
       while (true) {
         const { done, value } = await reader.read();
         if (done) {
-          dispatch({ type: 'set_history_loading', payload: false });
           break;
         }
 
@@ -266,7 +259,6 @@ export const useChat = () => {
 
     } catch (error) {
       console.error(`Failed to load chat history for ${chatId}:`, error);
-      dispatch({ type: 'set_history_loading', payload: false });
     }
   }, [state.chatMessages]);
 
@@ -348,7 +340,6 @@ export const useChat = () => {
   return {
     chats: state.chats,
     activeChatId: state.activeChatId,
-    historyLoading: state.historyLoading,
     messages, 
     isAiResponding, 
     sendMessage, 
