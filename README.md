@@ -1,7 +1,7 @@
 # *Scriptum colloquium, libere ad usum.*
 
-## Containerized web server for talking with Gpt-Oss-20B locally
-(and maybe other models tbd)
+## Containerized web server for talking with Gpt-Oss-20B locally <sub>(and maybe other models tbd)<sub/>
+
 
 ### Implemented
 - Markdown/LaTeX/Code Rendering
@@ -22,9 +22,9 @@
 - Long-Term Memory
 - TTS and STT
 
-ASP.NET Back End
-React Front End
+ASP.NET Back End<br/>
+React Front End<br/>
 Ollama LLM Server
 
-Containerized with Docker
+Containerized with Docker<br/>
 Orchestrated with Docker Compose
