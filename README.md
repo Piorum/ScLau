@@ -1,5 +1,3 @@
-# *Scriptum colloquium, libere ad usum.*
-
 ## Containerized web server for talking with Gpt-Oss-20B locally <br/><sub>(and maybe other models tbd)<sub/>
 
 
@@ -28,3 +26,5 @@ Ollama LLM Server
 
 Containerized with Docker<br/>
 Orchestrated with Docker Compose
+
+<sub>*Scriptum colloquium, libere ad usum.*<sub/>
