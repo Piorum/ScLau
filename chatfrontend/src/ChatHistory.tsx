@@ -9,9 +9,12 @@ interface ChatHistoryProps {
   isAiResponding: boolean;
   deleteMessage: (messageId: string | string[]) => void;
   editMessage: (messageId: string, newContent: string | { partId: string, newText: string }[]) => void;
+  onScroll: (event: React.UIEvent<HTMLDivElement>) => void;
 }
 
-const ChatHistory: React.FC<ChatHistoryProps> = ({ messages, isAiResponding, deleteMessage, editMessage }) => {
+const ChatHistory = React.forwardRef<HTMLDivElement, ChatHistoryProps>(
+  ({ messages, isAiResponding, deleteMessage, editMessage, onScroll }, ref) => {
+  
   const groupedMessages: Message[] = [];
   let currentReasoningGroup: Message[] = [];
 
@@ -46,6 +49,8 @@ const ChatHistory: React.FC<ChatHistoryProps> = ({ messages, isAiResponding, del
   return (
     <div 
       className="chat-history" 
+      ref={ref}
+      onScroll={onScroll}
     >
       {isAiResponding && <LoadingIcon />}
       {groupedMessages.slice().reverse().map((message) => (
@@ -53,6 +58,6 @@ const ChatHistory: React.FC<ChatHistoryProps> = ({ messages, isAiResponding, del
       ))}
     </div>
   );
-};
+});
 
 export default ChatHistory;

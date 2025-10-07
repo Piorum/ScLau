@@ -9,6 +9,7 @@
   border-radius: 15px;
   margin: 10px 10px 0px;
   border: 1px solid var(--color-border);
+  position: relative;
 }
 
 /* Stlying for most browsers */

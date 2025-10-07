@@ -6,6 +6,7 @@ import ChatHistory from './ChatHistory';
 import TopBar from './components/TopBar';
 import SideMenu from './components/SideMenu';
 import SettingsMenu from './components/SettingsMenu';
+import ScrollToBottomButton from './components/ScrollToBottomButton';
 import { useChat } from './hooks/useChat';
 import { useTheme } from './context/ThemeContext';
 
@@ -26,7 +27,20 @@ function App() {
     startNewChat
   } = useChat();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const { theme } = useTheme();
+
+  const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop } = event.currentTarget;
+    setShowScrollToBottom(scrollTop < -200);
+  };
+
+  const scrollToBottom = () => {
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
 
   useEffect(() => {
     loadChats();
@@ -133,7 +147,16 @@ function App() {
       <div className="main-content-wrapper">
         <TopBar onMenuToggle={toggleMenu} />
         <div className="chat-area-wrapper">
-            <ChatHistory messages={messages} isAiResponding={isAiResponding} deleteMessage={deleteMessage} editMessage={editMessage} />
+
+            <ChatHistory 
+              ref={chatContainerRef}
+              messages={messages} 
+              isAiResponding={isAiResponding} 
+              deleteMessage={deleteMessage} 
+              editMessage={editMessage} 
+              onScroll={handleScroll}
+            />
+            <ScrollToBottomButton onClick={scrollToBottom} isVisible={showScrollToBottom} />
             <div className="input-area">
               <textarea
                 ref={textareaRef}

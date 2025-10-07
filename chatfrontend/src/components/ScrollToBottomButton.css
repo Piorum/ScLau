@@ -1,0 +1,30 @@
+
+.scroll-to-bottom-button {
+  position: absolute;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--color-component-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 15px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--color-text-main);
+  z-index: 10;
+  opacity: 0;
+  transition: opacity 0.3s ease, background-color 0.3s ease;
+  pointer-events: none;
+}
+
+.scroll-to-bottom-button.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.scroll-to-bottom-button:hover {
+  background-color: var(--color-darkest-bg);
+}
