@@ -109,9 +109,15 @@ textarea {
   outline: none;
   transition: border-color 0.3s ease, background-color 0.3s ease, color 0.3s ease;
   resize: none;
-  overflow-y: hidden;
+  overflow-y: auto;
   min-height: 32px;
+  max-height: 45vh;
   box-sizing: border-box;
+  scrollbar-width: none; /* For Firefox */
+}
+
+textarea::-webkit-scrollbar {
+  display: none; /* For Chrome, Safari, and Opera */
 }
 
 textarea:focus {

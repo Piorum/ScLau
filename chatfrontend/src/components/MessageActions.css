@@ -2,8 +2,8 @@
   display: flex;
   gap: 8px;
   position: absolute;
-  bottom: -15px;
-  right: -10px;
+  bottom: -5px;
+  right: -5px;
   background-color: var(--color-darkest-bg);
   padding: 4px 8px;
   border-radius: 8px;
