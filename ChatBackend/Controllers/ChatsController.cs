@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using ChatBackend.Models;
 using System.Text.Json;
 using System.Text;
-using System.Collections.Concurrent;
+using ChatBackend.Data;
 
 namespace ChatBackend.Controllers;
 
@@ -10,12 +10,6 @@ namespace ChatBackend.Controllers;
 [Route("api/[controller]")]
 public class ChatsController : ControllerBase
 {
-    static ChatsController()
-    {
-        //Load real history from DB here into _chats?
-    }
-
-    private static readonly ConcurrentDictionary<Guid, ChatHistory> _chats = [];
     private static readonly GptOss _chatGenerator = new();
 
     // GET /api/chats
@@ -23,13 +17,7 @@ public class ChatsController : ControllerBase
     [HttpGet]
     public IActionResult GetChats()
     {
-        var chatsData = _chats.Select(kvp => new
-        {
-            ChatId = kvp.Key,
-            lastMessage = new DateTimeOffset(kvp.Value.LastMessageTime ?? DateTime.UnixEpoch).ToUnixTimeSeconds()
-        });
-
-        return Ok(chatsData);
+        return Ok(ChatsCache.ListChats());
     }
 
     // GET /api/chats/{chatId}
@@ -39,12 +27,7 @@ public class ChatsController : ControllerBase
     {
         Response.ContentType = "application/x-ndjson";
 
-        _chats.TryGetValue(chatId, out var history);
-        if (history is null)
-        {
-            history = new();
-            _chats.TryAdd(chatId, history);
-        }
+        ChatsCache.GetOrCreateChatHistory(chatId, out var history);
 
         foreach (var message in history.Messages)
         {
@@ -60,7 +43,7 @@ public class ChatsController : ControllerBase
     [HttpDelete("{chatId:guid}")]
     public IActionResult DeleteChat(Guid chatId)
     {
-        if (_chats.TryRemove(chatId, out var _))
+        if (ChatsCache.RemoveChatHistory(chatId))
             return NoContent();
 
         return NotFound();
@@ -71,8 +54,10 @@ public class ChatsController : ControllerBase
     [HttpGet("{chatId:guid}/title")]
     public IActionResult GetTitle(Guid chatId)
     {
-        if (_chats.TryGetValue(chatId, out var history))
-            return Ok(history.Title);
+        if (ChatsCache.GetChatHistory(chatId, out var history))
+        {
+            return Ok(history!.Title);
+        }
 
         return NotFound($"Chat with ID \"{chatId}\" not found.");
     }
@@ -82,9 +67,9 @@ public class ChatsController : ControllerBase
     [HttpPut("{chatId:guid}/title")]
     public IActionResult ReplaceTitle(Guid chatId, [FromBody] PostTitleRequest request)
     {
-        if (_chats.TryGetValue(chatId, out var history))
+        if (ChatsCache.GetChatHistory(chatId, out var history))
         {
-            history.Title = request.Title;
+            history!.Title = request.Title;
             return NoContent();
         }
 
@@ -98,12 +83,7 @@ public class ChatsController : ControllerBase
     public async Task PostMessage(Guid chatId, [FromBody] PostMessageRequest request)
     {
 
-        _chats.TryGetValue(chatId, out var history);
-        if (history is null)
-        {
-            history = new();
-            _chats.TryAdd(chatId, history);
-        }
+        ChatsCache.GetOrCreateChatHistory(chatId, out var history);
 
         if (!string.IsNullOrEmpty(request.UserPrompt))
                 history.Messages.Add(new ChatMessage
@@ -135,9 +115,9 @@ public class ChatsController : ControllerBase
     [HttpDelete("{chatId:guid}/messages/{messageId:guid}")]
     public IActionResult DeleteMessage(Guid chatId, Guid messageId)
     {
-        if (_chats.TryGetValue(chatId, out var history))
+        if (ChatsCache.GetChatHistory(chatId, out var history))
         {
-            if (history.Messages.RemoveAll(e => e.MessageId == messageId) > 0)
+            if (history!.Messages.RemoveAll(e => e.MessageId == messageId) > 0)
                 return NoContent();
                 
             return NotFound($"Message with ID \"{messageId}\" not found in chat with ID {chatId}.");
@@ -150,9 +130,9 @@ public class ChatsController : ControllerBase
     [HttpPut("{chatId:guid}/messages/{messageId:guid}")]
     public IActionResult EditMessage(Guid chatId, Guid messageId, [FromBody] PostMessageContentRequest request)
     {
-        if (_chats.TryGetValue(chatId, out var history))
+        if (ChatsCache.GetChatHistory(chatId, out var history))
         {
-            var message = history.Messages.FirstOrDefault(e => e.MessageId == messageId);
+            var message = history!.Messages.FirstOrDefault(e => e.MessageId == messageId);
             if (message is not null)
             {
                 message.Content = request.Content;
