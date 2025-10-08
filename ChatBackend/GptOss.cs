@@ -58,7 +58,6 @@ public class GptOss : IChatGenerator
             await channel.Writer.WriteAsync(new() { IsDone = true });
             channel.Writer.Complete();
 
-            await Console.Out.WriteLineAsync($"{new GptOssHistoryBuilder().WithHistory(history).WithOptions(options)}");
         });
 
         return channel;
