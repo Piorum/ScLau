@@ -41,6 +41,14 @@ public static class ChatsCache
         history = _history;
     }
 
+    public static Guid? CreateChatHistory(ChatHistory history)
+    {
+        var newGuid = Guid.NewGuid();
+        var success = _chats.TryAdd(newGuid, history);
+
+        return success ? newGuid : null;
+    }
+
     public static bool RemoveChatHistory(Guid key)
     {
         if (_chats.TryRemove(key, out var _))

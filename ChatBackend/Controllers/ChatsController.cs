@@ -25,17 +25,9 @@ public class ChatsController : ControllerBase
     [HttpGet("{chatId:guid}")]
     public async Task GetChat(Guid chatId)
     {
-        Response.ContentType = "application/x-ndjson";
-
         ChatsCache.GetOrCreateChatHistory(chatId, out var history);
 
-        foreach (var message in history.Messages)
-        {
-            var lsrMessage = message with { Content = LatexStreamRewriter.ProcessString(message.Content) };
-            var jsonChunk = JsonSerializer.Serialize(lsrMessage);
-            await Response.WriteAsync(jsonChunk + "\n");
-            await Response.Body.FlushAsync();
-        }
+        await StreamExistingMessagesAsync(history.Messages);
     }
 
     // DELETE /api/chats/{chatId}
@@ -82,32 +74,18 @@ public class ChatsController : ControllerBase
     [HttpPost("{chatId:guid}/messages")]
     public async Task PostMessage(Guid chatId, [FromBody] PostMessageRequest request)
     {
-
         ChatsCache.GetOrCreateChatHistory(chatId, out var history);
 
         if (!string.IsNullOrEmpty(request.UserPrompt))
-                history.Messages.Add(new ChatMessage
-                {
-                    MessageId = request.UserMessageId,
-                    Role = MessageRole.User,
-                    Content = request.UserPrompt
-                });
+            history.Messages.Add(new ChatMessage
+            {
+                MessageId = request.UserMessageId,
+                Role = MessageRole.User,
+                Content = request.UserPrompt
+            });
 
         var options = request.Options ?? new ChatOptions();
-        options.ModelName = "gpt-oss:20b";
-        options.SystemMessage = "Fulfill the request to the best of your abilities.";
-        options.ExtendedProperties.TryAdd("reasoning_level", "medium");
-        options.ExtendedProperties.TryAdd("meta_information", "You are a large language model.");
-
-        LatexStreamRewriter lsr = new();
-        Response.ContentType = "application/x-ndjson";
-        await foreach (var response in _chatGenerator.ContinueChatAsync(history, options).ReadAllAsync())
-        {
-            response.ContentChunk = lsr.ProcessChunk(response.ContentChunk);
-            var jsonChunk = JsonSerializer.Serialize(response);
-            await Response.WriteAsync(jsonChunk + "\n");
-            await Response.Body.FlushAsync();
-        }
+        await StreamChatResponse(history, options);
     }
 
     // DELETE chats/{chatId}/messages/{messageId}
@@ -120,7 +98,7 @@ public class ChatsController : ControllerBase
             if (history!.Messages.RemoveAll(e => e.MessageId == messageId) > 0)
                 return NoContent();
                 
-            return NotFound($"Message with ID \"{messageId}\" not found in chat with ID {chatId}.");
+            return NotFound($"Message with ID \"{messageId}\" not found in chat with ID \"{chatId}\".");
         }
         return NotFound($"Chat with ID \"{chatId}\" not found.");
     }
@@ -138,16 +116,104 @@ public class ChatsController : ControllerBase
                 message.Content = request.Content;
                 return NoContent();
             }
-            return NotFound($"Message with ID \"{messageId}\" not found in chat with ID {chatId}.");
+            return NotFound($"Message with ID \"{messageId}\" not found in chat with ID \"{chatId}\".");
         }
         return NotFound($"Chat with ID \"{chatId}\" not found.");
     }
 
     // POST chats/{chatId}/messages/{messageId}/regenerate
     // Deletes all messages past the last user message before the specified message and re-prompts AI, streams AI's response
+    [HttpPost("{chatId:guid}/messages{messageId:guid}/regenerate")]
+    public async Task<IActionResult> PostRegenerateMessage(Guid chatId, Guid messageId, [FromBody] PostMessageRequest request)
+    {
+        if (!ChatsCache.GetChatHistory(chatId, out var history))
+            return NotFound($"Chat with ID \"{chatId}\" not found.");
 
-    // POST chats/{chatId}/messages/{messageId}/branch
+        var messages = history!.Messages;
+        var targetIndex = messages.FindIndex(m => m.MessageId == messageId);
+        if (targetIndex == -1)
+            return NotFound($"Message with ID \"{messageId}\" not found in chat with ID \"{chatId}\".");
+
+        int lastUserIndex = -1;
+        for (int i = targetIndex; i >= 0; i--)
+            if (messages[i].Role == MessageRole.User)
+            {
+                lastUserIndex = i;
+                break;
+            }
+
+        if (lastUserIndex == -1)
+            return NotFound($"No user message found before message with ID \"{messageId}\" in chat with ID \"{chatId}\".");
+
+        if (lastUserIndex < messages.Count - 1)
+            messages.RemoveRange(lastUserIndex + 1, messages.Count - (lastUserIndex + 1));
+
+        var options = request.Options ?? new ChatOptions();
+        await StreamChatResponse(history, options);
+
+        return new EmptyResult();
+
+    }
+
+    // GET chats/{chatId}/messages/{messageId}/branch
     // Creates a new chat with a copy of the messages in the specified chat up to the specified message.
+    [HttpGet("{chatId:guid}/messages/{messageId:guid}/branch")]
+    public async Task<IActionResult> GetBranch(Guid chatId, Guid messageId)
+    {
+        if (!ChatsCache.GetChatHistory(chatId, out var baseHistory))
+            return NotFound($"Chat with ID \"{chatId}\" not found.");
+
+        var branchPointIndex = baseHistory!.Messages.FindIndex(m => m.MessageId == messageId);
+        if (branchPointIndex == -1)
+        {
+            return NotFound($"Message with ID \"{messageId}\" not found in chat with ID \"{chatId}\".");
+        }
+
+        var newMessages = baseHistory.Messages.GetRange(0, branchPointIndex + 1);
+
+        ChatHistory newHistory = new();
+        newHistory.Messages.AddRange(newMessages);
+        newHistory.Title = baseHistory.Title;
+
+        var newChatId = ChatsCache.CreateChatHistory(newHistory);
+
+        Response.Headers.Append("X-New-Chat-Id", newChatId.ToString());
+        await StreamExistingMessagesAsync(newHistory.Messages);
+
+        return new EmptyResult();
+    }
+    
+    private async Task StreamExistingMessagesAsync(IEnumerable<ChatMessage> messages)
+    {
+        Response.ContentType = "application/x-ndjson";
+
+        foreach (var message in messages)
+        {
+            // Process the content of each message for client-side rendering
+            var processedMessage = message with { Content = LatexStreamRewriter.ProcessString(message.Content) };
+            var jsonChunk = JsonSerializer.Serialize(processedMessage);
+            await Response.WriteAsync(jsonChunk + "\n");
+            await Response.Body.FlushAsync();
+        }
+    }
+    private async Task StreamChatResponse(ChatHistory history, ChatOptions options)
+    {
+        options.ModelName = "gpt-oss:20b";
+        options.SystemMessage = "Fulfill the request to the best of your abilities.";
+        options.ExtendedProperties.TryAdd("reasoning_level", "medium");
+        options.ExtendedProperties.TryAdd("meta_information", "You are a large language model.");
+
+        LatexStreamRewriter lsr = new();
+        Response.ContentType = "application/x-ndjson";
+
+        await foreach (var response in _chatGenerator.ContinueChatAsync(history, options).ReadAllAsync())
+        {
+            response.ContentChunk = lsr.ProcessChunk(response.ContentChunk);
+            var jsonChunk = JsonSerializer.Serialize(response);
+            await Response.WriteAsync(jsonChunk + "\n");
+            await Response.Body.FlushAsync();
+        }
+    }
 
     private class LatexStreamRewriter
     {
