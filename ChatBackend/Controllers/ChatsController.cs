@@ -196,9 +196,10 @@ public class ChatsController : ControllerBase
             await Response.Body.FlushAsync();
         }
     }
+
     private async Task StreamChatResponse(ChatHistory history, ChatOptions options)
     {
-        options.ModelName = "gpt-oss:20b";
+        options.ChatProvider = "gpt-oss:20b";
         options.SystemMessage = "Fulfill the request to the best of your abilities.";
         options.ExtendedProperties.TryAdd("reasoning_level", "medium");
         options.ExtendedProperties.TryAdd("meta_information", "You are a large language model.");

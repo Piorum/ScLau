@@ -9,7 +9,7 @@ namespace ChatBackend;
 
 public static class LLMProvider
 {
-    static public ChannelReader<string> StreamCompletionAsync(string prompt, ChatOptions options, Channel<string>? existingChannel = null)
+    static public ChannelReader<string> StreamCompletionAsync(string prompt, string modelName, ChatOptions options, Channel<string>? existingChannel = null)
     {
         Channel<string> channel = existingChannel ?? Channel.CreateUnbounded<string>();
 
@@ -21,7 +21,7 @@ public static class LLMProvider
             //Other request values will be initialized by environment variables in the constructor
             var requestBody = new OllamaRequest()
             {
-                Model = options.ModelName,
+                Model = modelName,
                 Prompt = prompt,
                 Options = new()
                 {

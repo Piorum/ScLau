@@ -18,7 +18,12 @@ public class GptOss : IChatGenerator
             while (!isConversationDone)
             {
                 var prompt = new GptOssHistoryBuilder().WithHistory(history).WithOptions(options).ToString();
-                var modelOutput = LLMProvider.StreamCompletionAsync($"{prompt}<|start|>assistant", options);
+
+                var model = options.ExtendedProperties.TryGetValue("modelName", out var value) ? value as string : null;
+                if (string.IsNullOrEmpty(model))
+                    model = "gpt-oss:20b";
+                    
+                var modelOutput = LLMProvider.StreamCompletionAsync($"{prompt}<|start|>assistant", model, options);
 
                 ChatState state = new(promptHasAssistantTrail: true)
                 {
