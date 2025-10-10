@@ -49,6 +49,7 @@ public class ChatsController(IChatProviderFactory chatProviderFactory) : Control
     {
         if (ChatsCache.GetChatHistory(chatId, out var history))
         {
+            //generate title here
             return Ok(history!.Title);
         }
 

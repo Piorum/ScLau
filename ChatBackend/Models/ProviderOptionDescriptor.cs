@@ -10,7 +10,7 @@ public class ProviderOptionDescriptor
     //Human friendly description
     required public string Description;
 
-    required public OptionType Type;
+    required public ProviderOptionType Type;
 
     required public object DefaultValue;
 
@@ -49,7 +49,7 @@ public class ProviderOptionDescriptor
         }
 
         // Enum validation
-        if (Type == OptionType.Enum && AllowedValues is { } allowed)
+        if (Type == ProviderOptionType.Enum && AllowedValues is { } allowed)
         {
             var strVal = value?.ToString();
             if (!allowed.Contains(strVal ?? string.Empty))
@@ -61,13 +61,4 @@ public class ProviderOptionDescriptor
         return value;
     }
 
-}
-
-public enum OptionType
-{
-    String,
-    Enum,
-    Boolean,
-    Integer,
-    Float
 }

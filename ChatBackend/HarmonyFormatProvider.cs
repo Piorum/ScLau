@@ -309,7 +309,7 @@ public class HarmonyFormatProvider : IChatProvider
             Key = "model_name",
             Description = "Full Ollama model name and tag.",
 
-            Type = OptionType.String,
+            Type = ProviderOptionType.String,
 
             DefaultValue = "gpt-oss:20b"
         };
@@ -320,7 +320,7 @@ public class HarmonyFormatProvider : IChatProvider
             Key = "meta_information",
             Description = "Meta information to tell the model.",
 
-            Type = OptionType.String,
+            Type = ProviderOptionType.String,
 
             DefaultValue = "You are a large language model."
         };
@@ -331,7 +331,7 @@ public class HarmonyFormatProvider : IChatProvider
             Key = "reasoning_level",
             Description = "Level of reasoning effort the model should use.",
 
-            Type = OptionType.Enum,
+            Type = ProviderOptionType.Enum,
 
             DefaultValue = "low",
 
