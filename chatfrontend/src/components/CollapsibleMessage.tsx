@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import LoadingIcon from './LoadingIcon';
 import MessageActions from './MessageActions';
 import ReactMarkdown from 'react-markdown';
@@ -6,6 +6,7 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import rehypeHighlight from 'rehype-highlight';
+import twemoji from 'twemoji';
 import MultiPartEditableMessageContent from './MultiPartEditableMessageContent';
 import './CollapsibleMessage.css';
 import '../ChatMessage.css';
@@ -16,6 +17,26 @@ interface CollapsibleMessageProps {
   onEdit: (edits: { partId: string, newText: string }[]) => void;
   onDelete: () => void;
 }
+
+const PartRenderer: React.FC<{ text: string }> = ({ text }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (ref.current) {
+      twemoji.parse(ref.current, { folder: 'svg', ext: '.svg' });
+    }
+  }, [text]);
+
+  return (
+    <div ref={ref}>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm, remarkMath]}
+        rehypePlugins={[rehypeKatex, rehypeHighlight]}
+      >
+        {text}
+      </ReactMarkdown>
+    </div>
+  );
+};
 
 const CollapsibleMessage: React.FC<CollapsibleMessageProps> = ({ message, onEdit, onDelete }) => {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -67,10 +88,7 @@ const CollapsibleMessage: React.FC<CollapsibleMessageProps> = ({ message, onEdit
       <div className="collapsible-content">
         {message.parts?.map((part, index) => (
           <div key={part.id} style={{ borderBottom: index < message.parts!.length - 1 ? '1px solid var(--color-border)' : 'none' }}>
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm, remarkMath]}
-              rehypePlugins={[rehypeKatex, rehypeHighlight]}
-            >{part.text}</ReactMarkdown>
+            <PartRenderer text={part.text} />
           </div>
         ))}
       </div>

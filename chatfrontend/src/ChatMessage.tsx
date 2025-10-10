@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import rehypeHighlight from 'rehype-highlight';
+import twemoji from 'twemoji';
 import './ChatMessage.css';
 import CollapsibleMessage from './components/CollapsibleMessage';
 import MessageActions from './components/MessageActions';
@@ -18,6 +19,13 @@ interface ChatMessageProps {
 
 const ChatMessage: React.FC<ChatMessageProps> = ({ message, deleteMessage, editMessage }) => {
   const [isEditing, setIsEditing] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (contentRef.current) {
+      twemoji.parse(contentRef.current, { folder: 'svg', ext: '.svg' });
+    }
+  }, [message.text, isEditing, message.isStreaming]);
 
   const handleEdit = () => {
     setIsEditing(true);
@@ -76,10 +84,12 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, deleteMessage, editM
     <div className={`chat-message-wrapper ${message.sender}`}>
       <div className={`chat-message ${message.sender}`}>
         {!message.isStreaming && <MessageActions onEdit={handleEdit} onDelete={handleDelete} />}
-        <ReactMarkdown
-          remarkPlugins={[remarkGfm, remarkMath]}
-          rehypePlugins={[rehypeKatex, rehypeHighlight]}
-        >{message.text}</ReactMarkdown>
+        <div ref={contentRef}>
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm, remarkMath]}
+            rehypePlugins={[rehypeKatex, rehypeHighlight]}
+          >{message.text}</ReactMarkdown>
+        </div>
       </div>
     </div>
   );
