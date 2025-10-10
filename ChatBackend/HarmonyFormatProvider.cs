@@ -42,6 +42,7 @@ public class HarmonyFormatProvider : IChatProvider
 
                 await foreach (var token in modelOutput.ReadAllAsync())
                 {
+                    Console.WriteLine($"{token}");
                     if (token is null) continue;
 
                     if (state.TokenHandlers.TryGetValue(token, out var handler))
@@ -70,7 +71,9 @@ public class HarmonyFormatProvider : IChatProvider
             await channel.Writer.WriteAsync(new() { IsDone = true });
             channel.Writer.Complete();
 
+
         });
+
 
         return channel;
     }
@@ -85,7 +88,6 @@ public class HarmonyFormatProvider : IChatProvider
         public bool IncomingMessage { get; private set; } = false;
 
         public string? CurrentChannel { get; private set; } = null;
-        public string? CurrentRole { get; private set; } = null;
 
         public Guid CurrentMessageId;
         public ContentType ContentType => CurrentChannel == HarmonyChannels.Final ? ContentType.Answer : ContentType.Reasoning;
@@ -99,10 +101,7 @@ public class HarmonyFormatProvider : IChatProvider
         public ChatState(bool promptHasAssistantTrail) : this()
         {
             if (promptHasAssistantTrail)
-            {
-                CurrentRole = HarmonyRoles.Assistant;
                 IncomingRole = false;
-            }
         }
 
         public readonly Dictionary<string, Func<ChatState, StringBuilder, Task>> TokenHandlers =
@@ -118,10 +117,7 @@ public class HarmonyFormatProvider : IChatProvider
         private Task ProcessRoleContent(StringBuilder sb)
         {
             if (IncomingRole)
-            {
-                CurrentRole = $"{sb}";
                 IncomingRole = false;
-            }
 
             sb.Clear();
             return Task.CompletedTask;
@@ -150,7 +146,6 @@ public class HarmonyFormatProvider : IChatProvider
         /// <returns>Returns 'true' if assistant has yielded</returns>
         public async Task<bool> ProcessTurnCompletion(StringBuilder sb)
         {
-            //This logic is terrible but not sure what else to do.
             string[] nonToolCallChannelNames = [HarmonyChannels.Commentary, HarmonyChannels.Analysis, HarmonyChannels.Final];
             if (nonToolCallChannelNames.Contains(CurrentChannel))
             {
@@ -160,35 +155,57 @@ public class HarmonyFormatProvider : IChatProvider
             }
             else
             {
-                UpdateHistory($"{sb}", HarmonyTokens.Call);
+                Console.WriteLine("Getting Tool Name");
+                string toolName = "unknown";
+                if (!string.IsNullOrEmpty(CurrentChannel))
+                {
+                    Console.WriteLine($"{CurrentChannel}");
+                    string prefix = "commentary to=functions.";
+                    string suffix = "<|constrain|>json";
+
+                    if (CurrentChannel.StartsWith(prefix) && CurrentChannel.EndsWith(suffix))
+                        toolName = CurrentChannel[prefix.Length..^suffix.Length].Trim();
+                }
+
+                Console.WriteLine("Creating Call Message");
+                var callId = $"{Guid.NewGuid()}";
+                var toolCall = ChatMessage.CreateToolMessage(CurrentMessageId, new(Id: callId, ToolName: toolName, Content: $"{sb}", Result: false));
+                History.Messages.Add(toolCall);
 
                 //Handle tool call
+
                 //Append tool call reply to history
-                //Output to frontend?
-                string errorMessage = "Error: Tools are unavailable.";
                 Guid messageId = Guid.NewGuid();
-                ChatMessage callReturn = new()
+                string content;
+                if (toolName == "get_current_weather")
                 {
-                    MessageId = messageId,
-                    Role = MessageRole.Tool,
-                    Content = errorMessage,
-                    ContentType = ContentType.Reasoning
-                };
-                callReturn.ExtendedProperties.Add(ExtendedMessagePropertyKeys.Role, HarmonyRoles.System);
-                callReturn.ExtendedProperties.Add(ExtendedMessagePropertyKeys.Channel, HarmonyChannels.Commentary);
-                History.Messages.Add(callReturn);
+                    content = "It is Sunny, clear skies, 86F";
+                    var toolReturn = ChatMessage.CreateToolMessage(messageId, new(Id: callId, ToolName: toolName, Content: content, Result: true));
+                    History.Messages.Add(toolReturn);
+                }
+                else
+                {
+                    content = "Error: Tool is unavailable.";
+                    var errorReturn = ChatMessage.CreateSystemMessage(messageId, content, ContentType.Reasoning);
+                    errorReturn.ExtendedProperties.Add(ExtendedMessagePropertyKeys.Channel, HarmonyChannels.Commentary);
+                    History.Messages.Add(errorReturn);
+                }
+
+                //Output result to frontend
+                Console.WriteLine("Sending To The Channel");
                 await Channel.Writer.WriteAsync
                 (
                     new()
                     {
-                        ContentChunk = errorMessage,
+                        ContentChunk = content,
                         ContentType = ContentType.Reasoning,
                         MessageId = messageId,
                         IsDone = false
                     }
                 );
 
-                //return conversation is not over
+                //return false, conversation is not over
+                Console.WriteLine("Returning");
                 return false;
             }
 
@@ -196,25 +213,15 @@ public class HarmonyFormatProvider : IChatProvider
 
         private void UpdateHistory(string content, string? endToken = null)
         {
-            ChatMessage message = new()
-            {
-                MessageId = CurrentMessageId,
-                Role = Enum.TryParse<MessageRole>(CurrentRole, true, out var currentRole) ? currentRole : MessageRole.Tool,
-                Content = content
-            };
+            var message = ChatMessage.CreateAssistantMessage(CurrentMessageId, content, ContentType);
 
             if (CurrentChannel is not null)
-            {
                 message.ExtendedProperties.Add(ExtendedMessagePropertyKeys.Channel, CurrentChannel);
-                if (CurrentChannel != HarmonyChannels.Final)
-                    message.ContentType = ContentType.Reasoning;
-            }
             if (endToken is not null)
                 message.ExtendedProperties.Add(ExtendedMessagePropertyKeys.EndToken, endToken);
 
             History.Messages.Add(message);
 
-            CurrentRole = null;
             CurrentChannel = null;
             CurrentMessageId = Guid.NewGuid();
         }
@@ -257,11 +264,17 @@ public class HarmonyFormatProvider : IChatProvider
             {
                 foreach (var message in history.Messages)
                 {
+                    if (message.Role == MessageRole.Tool)
+                    {
+                        AppendTool(message.ToolContext!);
+                        continue;
+                    }
+
                     string roleText = message.Role switch
                     {
                         MessageRole.User => HarmonyRoles.User,
                         MessageRole.Assistant => HarmonyRoles.Assistant,
-                        MessageRole.Tool => GetToolRoleText(message),
+                        MessageRole.System => HarmonyRoles.System,
                         _ => throw new System.ComponentModel.InvalidEnumArgumentException(message.Role.ToString(), (int)message.Role, typeof(MessageRole))
                     };
 
@@ -269,21 +282,11 @@ public class HarmonyFormatProvider : IChatProvider
 
                     string? endToken = GetProperty(message, ExtendedMessagePropertyKeys.EndToken);
 
-                    Append(roleText, message.Content, channelText, endToken);
+                    Append(roleText, message.Content!, channelText, endToken);
                 }
             }
 
         }
-
-        private static string GetToolRoleText(ChatMessage message)
-        {
-            string roleText = GetProperty(message, ExtendedMessagePropertyKeys.Role) ?? HarmonyRoles.System;
-
-            return roleText;
-        }
-
-        private static string? GetProperty(ChatMessage message, string key) =>
-            message.ExtendedProperties.TryGetValue(key, out var val) ? val as string : null;
 
         private void Append(string roleText, string messageText, string? channelText = null, string? endToken = null)
         {
@@ -293,6 +296,16 @@ public class HarmonyFormatProvider : IChatProvider
             sb.Append($"{HarmonyTokens.Message}{messageText}");
             sb.Append($"{endToken ?? HarmonyTokens.End}");
         }
+
+        private void AppendTool(ToolContext toolContext)
+        {
+            sb.Append($"{HarmonyTokens.Start}{(toolContext.Result ? $"{toolContext.ToolName} to=assistant" : HarmonyRoles.Assistant)}");
+            sb.Append($"{HarmonyTokens.Channel}{HarmonyChannels.Commentary}{(toolContext.Result ? "" : $"to=functions.{toolContext.ToolName} <|constrain|>json")}");
+            sb.Append($"{HarmonyTokens.Message}{toolContext.Content}");
+        }
+
+        private static string? GetProperty(ChatMessage message, string key) =>
+            message.ExtendedProperties.TryGetValue(key, out var val) ? val as string : null;
 
         public override string ToString()
         {
@@ -341,7 +354,6 @@ public class HarmonyFormatProvider : IChatProvider
 
     private static class ExtendedMessagePropertyKeys
     {
-        public const string Role = "role";
         public const string Channel = "channel";
         public const string EndToken = "end_token";
     }

@@ -240,7 +240,7 @@ export const useChat = () => {
                 } else { // Answer
                     sender = 'ai-answer';
                 }
-            } else if (msg.Role === 2) { // Tool
+            } else { // Tool or System
                 sender = 'ai-reasoning';
             }
 

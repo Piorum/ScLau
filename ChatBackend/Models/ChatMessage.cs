@@ -2,14 +2,44 @@ using ChatBackend.Interfaces;
 
 namespace ChatBackend.Models;
 
-public enum MessageRole { User, Assistant, Tool }
-
 public record ChatMessage : IExtensibleProperties
 {
-    public Guid MessageId { get; set; }
-    public MessageRole Role { get; set; }
-    public string Content { get; set; } = "";
-    public ContentType ContentType { get; set; } = ContentType.Answer;
-    public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+    public Guid MessageId { get; private set; }
+    public MessageRole Role { get; private set; }
+    public string? Content { get; set; } = null;
+    public ToolContext? ToolContext { get; set; } = null;
+    public ContentType ContentType { get; private set; } = ContentType.Answer;
+    public DateTime Timestamp { get; private set; } = DateTime.UtcNow;
     public IDictionary<string, object> ExtendedProperties { get; private set; } = new Dictionary<string, object>();
+
+    private ChatMessage() { }
+
+    private ChatMessage(Guid messageId, MessageRole role, string content, ContentType? contentType = null)
+    {
+        MessageId = messageId;
+        Role = role;
+        Content = content;
+
+        if (contentType.HasValue)
+            ContentType = contentType.Value;
+    }
+
+    public static ChatMessage CreateUserMessage(Guid messageId, string content, ContentType? contentType = null) =>
+        new(messageId, MessageRole.User, content, contentType);
+    public static ChatMessage CreateAssistantMessage(Guid messageId, string content, ContentType? contentType = null) =>
+        new(messageId, MessageRole.Assistant, content, contentType);
+    public static ChatMessage CreateSystemMessage(Guid messageId, string content, ContentType? contentType = null) =>
+        new(messageId, MessageRole.System, content, contentType);
+
+    public static ChatMessage CreateToolMessage(Guid messageId, ToolContext toolContext) =>
+        new()
+        {
+            MessageId = messageId,
+            Role = MessageRole.Tool,
+            ToolContext = toolContext,
+            ContentType = ContentType.Reasoning
+        };
+
 }
+
+public record ToolContext(string Id, string ToolName, string Content, bool Result);

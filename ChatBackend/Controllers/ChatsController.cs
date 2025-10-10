@@ -79,12 +79,7 @@ public class ChatsController(IChatProviderFactory chatProviderFactory) : Control
         ChatsCache.GetOrCreateChatHistory(chatId, out var history);
 
         if (!string.IsNullOrEmpty(request.UserPrompt))
-            history.Messages.Add(new ChatMessage
-            {
-                MessageId = request.UserMessageId,
-                Role = MessageRole.User,
-                Content = request.UserPrompt
-            });
+            history.Messages.Add(ChatMessage.CreateUserMessage(request.UserMessageId, request.UserPrompt));
 
         var options = request.Options ?? new ChatOptions();
         await StreamChatResponse(history, options);
@@ -115,7 +110,11 @@ public class ChatsController(IChatProviderFactory chatProviderFactory) : Control
             var message = history!.Messages.FirstOrDefault(e => e.MessageId == messageId);
             if (message is not null)
             {
-                message.Content = request.Content;
+                if (message.Role != MessageRole.Tool)
+                    message.Content = request.Content;
+                else
+                    message.ToolContext = message.ToolContext! with { Content = request.Content };
+
                 return NoContent();
             }
             return NotFound($"Message with ID \"{messageId}\" not found in chat with ID \"{chatId}\".");
@@ -192,7 +191,7 @@ public class ChatsController(IChatProviderFactory chatProviderFactory) : Control
         foreach (var message in messages)
         {
             // Process the content of each message for client-side rendering
-            var processedMessage = message with { Content = LatexStreamRewriter.ProcessString(message.Content) };
+            var processedMessage = message with { Content = LatexStreamRewriter.ProcessString(message.Role != MessageRole.Tool ? message.Content! : message.ToolContext!.Content ) };
             var jsonChunk = JsonSerializer.Serialize(processedMessage);
             await Response.WriteAsync(jsonChunk + "\n");
             await Response.Body.FlushAsync();
