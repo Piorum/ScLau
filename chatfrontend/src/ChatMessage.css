@@ -54,7 +54,8 @@
   font-family: inherit;
   font-size: inherit;
   resize: none;
-  overflow: hidden; /* Reverted */
+  overflow-y: auto;
+  max-height: 45vh;
   padding: 0;
   margin: 0;
 }
