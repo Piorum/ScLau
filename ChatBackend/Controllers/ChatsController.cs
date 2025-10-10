@@ -10,7 +10,7 @@ namespace ChatBackend.Controllers;
 [Route("api/[controller]")]
 public class ChatsController : ControllerBase
 {
-    private static readonly GptOss _chatGenerator = new();
+    private static readonly HarmonyFormatProvider _chatGenerator = new();
 
     // GET /api/chats
     // Returns list of chat ids, last message time, title
@@ -199,7 +199,7 @@ public class ChatsController : ControllerBase
 
     private async Task StreamChatResponse(ChatHistory history, ChatOptions options)
     {
-        options.ChatProvider = "gpt-oss:20b";
+        options.ChatProvider = "HarmonyFormatProvider";
         options.SystemMessage = "Fulfill the request to the best of your abilities.";
         options.ExtendedProperties.TryAdd("reasoning_level", "medium");
         options.ExtendedProperties.TryAdd("meta_information", "You are a large language model.");

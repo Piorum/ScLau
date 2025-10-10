@@ -5,8 +5,17 @@ using ChatBackend.Models;
 
 namespace ChatBackend;
 
-public class GptOss : IChatGenerator
+public class HarmonyFormatProvider : IChatGenerator
 {
+    public string Name { get; } = nameof(HarmonyFormatProvider);
+
+    public IEnumerable<ProviderOptionDescriptor> ExtendedOptions { get; private set; } =
+    [
+        ExtendedOptionDescriptors.Model,
+        ExtendedOptionDescriptors.MetaInformation,
+        ExtendedOptionDescriptors.ReasoningLevel
+    ];
+
     public ChannelReader<ModelResponse> ContinueChatAsync(ChatHistory history, ChatOptions options)
     {
         Channel<ModelResponse> channel = Channel.CreateUnbounded<ModelResponse>();
@@ -17,13 +26,11 @@ public class GptOss : IChatGenerator
 
             while (!isConversationDone)
             {
-                var prompt = new GptOssHistoryBuilder().WithHistory(history).WithOptions(options).ToString();
+                var prompt = new HarmonyFormatHistoryBuilder().WithHistory(history).WithOptions(options).ToString();
 
-                var model = options.ExtendedProperties.TryGetValue("modelName", out var value) ? value as string : null;
-                if (string.IsNullOrEmpty(model))
-                    model = "gpt-oss:20b";
-                    
-                var modelOutput = LLMProvider.StreamCompletionAsync($"{prompt}<|start|>assistant", model, options);
+                var model = ExtendedOptionDescriptors.Model.GetValue<string>(options);
+
+                var modelOutput = LLMProvider.StreamCompletionAsync($"{prompt}{HarmonyTokens.Start}{HarmonyRoles.Assistant}", model, options);
 
                 ChatState state = new(promptHasAssistantTrail: true)
                 {
@@ -81,7 +88,7 @@ public class GptOss : IChatGenerator
         public string? CurrentRole { get; private set; } = null;
 
         public Guid CurrentMessageId;
-        public ContentType ContentType => CurrentChannel == "final" ? ContentType.Answer : ContentType.Reasoning;
+        public ContentType ContentType => CurrentChannel == HarmonyChannels.Final ? ContentType.Answer : ContentType.Reasoning;
 
         private ChatState()
         {
@@ -93,7 +100,7 @@ public class GptOss : IChatGenerator
         {
             if (promptHasAssistantTrail)
             {
-                CurrentRole = "assistant";
+                CurrentRole = HarmonyRoles.Assistant;
                 IncomingRole = false;
             }
         }
@@ -101,10 +108,10 @@ public class GptOss : IChatGenerator
         public readonly Dictionary<string, Func<ChatState, StringBuilder, Task>> TokenHandlers =
         new()
         {
-            ["<|start|>"] = async (s, b) => await Task.Run(() => s.IncomingRole = true),
-            ["<|channel|>"] = async (s, b) => await s.ProcessRoleContent(b),
-            ["<|message|>"] = async (s, b) => await s.ProcessChannelContent(b),
-            ["<|end|>"] = async (s, b) => await s.ProcessMessageContent(b),
+            [HarmonyTokens.Start] = async (s, b) => await Task.Run(() => s.IncomingRole = true),
+            [HarmonyTokens.Channel] = async (s, b) => await s.ProcessRoleContent(b),
+            [HarmonyTokens.Message] = async (s, b) => await s.ProcessChannelContent(b),
+            [HarmonyTokens.End] = async (s, b) => await s.ProcessMessageContent(b),
 
         };
 
@@ -144,16 +151,16 @@ public class GptOss : IChatGenerator
         public async Task<bool> ProcessTurnCompletion(StringBuilder sb)
         {
             //This logic is terrible but not sure what else to do.
-            string[] nonToolCallChannelNames = ["commentary", "analysis", "final"];
+            string[] nonToolCallChannelNames = [HarmonyChannels.Commentary, HarmonyChannels.Analysis, HarmonyChannels.Final];
             if (nonToolCallChannelNames.Contains(CurrentChannel))
             {
-                UpdateHistory($"{sb}", "return");
+                UpdateHistory($"{sb}", HarmonyTokens.Return);
                 //return conversation is over
                 return true;
             }
             else
             {
-                UpdateHistory($"{sb}", "call");
+                UpdateHistory($"{sb}", HarmonyTokens.Call);
 
                 //Handle tool call
                 //Append tool call reply to history
@@ -167,8 +174,8 @@ public class GptOss : IChatGenerator
                     Content = errorMessage,
                     ContentType = ContentType.Reasoning
                 };
-                callReturn.ExtendedProperties.Add("role", "system");
-                callReturn.ExtendedProperties.Add("channel", "commentary");
+                callReturn.ExtendedProperties.Add(ExtendedMessagePropertyKeys.Role, HarmonyRoles.System);
+                callReturn.ExtendedProperties.Add(ExtendedMessagePropertyKeys.Channel, HarmonyChannels.Commentary);
                 History.Messages.Add(callReturn);
                 await Channel.Writer.WriteAsync
                 (
@@ -198,12 +205,12 @@ public class GptOss : IChatGenerator
 
             if (CurrentChannel is not null)
             {
-                message.ExtendedProperties.Add("channel", CurrentChannel);
-                if (CurrentChannel != "final")
+                message.ExtendedProperties.Add(ExtendedMessagePropertyKeys.Channel, CurrentChannel);
+                if (CurrentChannel != HarmonyChannels.Final)
                     message.ContentType = ContentType.Reasoning;
             }
             if (endToken is not null)
-                message.ExtendedProperties.Add("end_token", endToken);
+                message.ExtendedProperties.Add(ExtendedMessagePropertyKeys.EndToken, endToken);
 
             History.Messages.Add(message);
 
@@ -213,84 +220,154 @@ public class GptOss : IChatGenerator
         }
 
     }
-}
 
-public class GptOssHistoryBuilder
-{
-    private ChatHistory? history;
-    private ChatOptions? options;
-
-    private readonly StringBuilder sb = new();
-
-    public GptOssHistoryBuilder WithHistory(ChatHistory history)
+    private class HarmonyFormatHistoryBuilder
     {
-        this.history = history;
-        return this;
-    }
-    public GptOssHistoryBuilder WithOptions(ChatOptions options)
-    {
-        this.options = options;
-        return this;
-    }
+        private ChatHistory? history;
+        private ChatOptions? options;
 
-    private void Compile()
-    {
-        sb.Clear();
+        private readonly StringBuilder sb = new();
 
-        if (options is not null)
+        public HarmonyFormatHistoryBuilder WithHistory(ChatHistory history)
         {
-            string reasoningLevel = GetProperty(options, "reasoning_level") ?? "low";
-
-            string? metaInformation = GetProperty(options, "meta_information");
-
-            Append("system", $"{metaInformation ?? "You are a large language model."}\nKnowledge cutoff: 2024-06\nCurrent date: {DateTime.Now:yyyy-MM-dd}\n\nReasoning: {reasoningLevel}\n\n# Valid channels: analysis, commentary, final. Channel must be included for every message.");
-            Append("developer", $"# Instructions\n\n{options.SystemMessage}\n\n");
+            this.history = history;
+            return this;
+        }
+        public HarmonyFormatHistoryBuilder WithOptions(ChatOptions options)
+        {
+            this.options = options;
+            return this;
         }
 
-        if (history is not null)
+        private void Compile()
         {
-            foreach (var message in history.Messages)
+            sb.Clear();
+
+            if (options is not null)
             {
-                string roleText = message.Role switch
-                {
-                    MessageRole.User => "user",
-                    MessageRole.Assistant => "assistant",
-                    MessageRole.Tool => GetToolRoleText(message),
-                    _ => throw new System.ComponentModel.InvalidEnumArgumentException(message.Role.ToString(), (int)message.Role, typeof(MessageRole))
-                };
+                string reasoningLevel = ExtendedOptionDescriptors.ReasoningLevel.GetValue<string>(options);
 
-                string? channelText = GetProperty(message, "channel");
+                string metaInformation = ExtendedOptionDescriptors.MetaInformation.GetValue<string>(options);
 
-                string? endTokenText = GetProperty(message, "end_token");
-
-                Append(roleText, message.Content, channelText, endTokenText);
+                Append(HarmonyRoles.System, $"{metaInformation}\nKnowledge cutoff: 2024-06\nCurrent date: {DateTime.Now:yyyy-MM-dd}\n\nReasoning: {reasoningLevel}\n\n# Valid channels: analysis, commentary, final. Channel must be included for every message.");
+                Append(HarmonyRoles.Developer, $"# Instructions\n\n{options.SystemMessage}\n\n");
             }
+
+            if (history is not null)
+            {
+                foreach (var message in history.Messages)
+                {
+                    string roleText = message.Role switch
+                    {
+                        MessageRole.User => HarmonyRoles.User,
+                        MessageRole.Assistant => HarmonyRoles.Assistant,
+                        MessageRole.Tool => GetToolRoleText(message),
+                        _ => throw new System.ComponentModel.InvalidEnumArgumentException(message.Role.ToString(), (int)message.Role, typeof(MessageRole))
+                    };
+
+                    string? channelText = GetProperty(message, ExtendedMessagePropertyKeys.Channel);
+
+                    string? endToken = GetProperty(message, ExtendedMessagePropertyKeys.EndToken);
+
+                    Append(roleText, message.Content, channelText, endToken);
+                }
+            }
+
         }
 
+        private static string GetToolRoleText(ChatMessage message)
+        {
+            string roleText = GetProperty(message, ExtendedMessagePropertyKeys.Role) ?? HarmonyRoles.System;
+
+            return roleText;
+        }
+
+        private static string? GetProperty(ChatMessage message, string key) =>
+            message.ExtendedProperties.TryGetValue(key, out var val) ? val as string : null;
+
+        private void Append(string roleText, string messageText, string? channelText = null, string? endToken = null)
+        {
+            sb.Append($"{HarmonyTokens.Start}{roleText}");
+            if (channelText is not null)
+                sb.Append($"{HarmonyTokens.Channel}{channelText}");
+            sb.Append($"{HarmonyTokens.Message}{messageText}");
+            sb.Append($"{endToken ?? HarmonyTokens.End}");
+        }
+
+        public override string ToString()
+        {
+            Compile();
+            return sb.ToString();
+        }
     }
 
-    private static string GetToolRoleText(ChatMessage message)
+    private static class ExtendedOptionDescriptors
     {
-        string roleText = GetProperty(message, "role") ?? "system";
+        public readonly static ProviderOptionDescriptor Model = new()
+        {
+            Name = "Model Name",
+            Key = "model_name",
+            Description = "Full Ollama model name and tag.",
 
-        return roleText;
+            Type = OptionType.String,
+
+            DefaultValue = "gpt-oss:20b"
+        };
+
+        public readonly static ProviderOptionDescriptor MetaInformation = new()
+        {
+            Name = "Meta Information",
+            Key = "meta_information",
+            Description = "Meta information to tell the model.",
+
+            Type = OptionType.String,
+
+            DefaultValue = "You are a large language model."
+        };
+
+        public readonly static ProviderOptionDescriptor ReasoningLevel = new()
+        {
+            Name = "Reasoning Level",
+            Key = "reasoning_level",
+            Description = "Level of reasoning effort the model should use.",
+
+            Type = OptionType.Enum,
+
+            DefaultValue = "low",
+
+            AllowedValues = ["low", "medium", "high"]
+        };
     }
 
-    private static string? GetProperty(IExtensibleProperties obj, string key) =>
-        obj.ExtendedProperties.TryGetValue(key, out var val) ? val as string : null;
-
-    private void Append(string roleText, string messageText, string? channelText = null, string? endTokenText = null)
+    private static class ExtendedMessagePropertyKeys
     {
-        sb.Append($"<|start|>{roleText}");
-        if (channelText is not null)
-            sb.Append($"<|channel|>{channelText}");
-        sb.Append($"<|message|>{messageText}");
-        sb.Append($"<|{endTokenText ?? "end"}|>");
+        public const string Role = "role";
+        public const string Channel = "channel";
+        public const string EndToken = "end_token";
     }
 
-    public override string ToString()
+    private static class HarmonyRoles
     {
-        Compile();
-        return sb.ToString();
+        public const string System = "system";
+        public const string Developer = "developer";
+        public const string Assistant = "assistant";
+        public const string User = "user";
+    }
+
+    private static class HarmonyChannels
+    {
+        public const string Analysis = "analysis";
+        public const string Commentary = "commentary";
+        public const string Final = "final";
+    }
+
+    private static class HarmonyTokens
+    {
+        public const string Start = "<|start|>";
+        public const string Message = "<|message|>";
+        public const string Channel = "<|channel|>";
+        public const string End = "<|end|>";
+        public const string Call = "<|call|>";
+        public const string Return = "<|return|>";
     }
 }
