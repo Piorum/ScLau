@@ -5,7 +5,7 @@ using ChatBackend.Models;
 
 namespace ChatBackend;
 
-public class HarmonyFormatProvider : IChatGenerator
+public class HarmonyFormatProvider : IChatProvider
 {
     public string Name { get; } = nameof(HarmonyFormatProvider);
 

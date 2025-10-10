@@ -3,7 +3,7 @@ using ChatBackend.Models;
 
 namespace ChatBackend.Interfaces;
 
-public interface IChatGenerator
+public interface IChatProvider
 {
     string Name { get; }
     IEnumerable<ProviderOptionDescriptor> ExtendedOptions { get; }

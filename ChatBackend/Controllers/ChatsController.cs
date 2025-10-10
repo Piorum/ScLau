@@ -3,14 +3,15 @@ using ChatBackend.Models;
 using System.Text.Json;
 using System.Text;
 using ChatBackend.Data;
+using ChatBackend.Interfaces;
 
 namespace ChatBackend.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class ChatsController : ControllerBase
+public class ChatsController(IChatProviderFactory chatProviderFactory) : ControllerBase
 {
-    private static readonly HarmonyFormatProvider _chatGenerator = new();
+    private readonly IChatProviderFactory _chatProviderFactory = chatProviderFactory;
 
     // GET /api/chats
     // Returns list of chat ids, last message time, title
@@ -199,15 +200,14 @@ public class ChatsController : ControllerBase
 
     private async Task StreamChatResponse(ChatHistory history, ChatOptions options)
     {
-        options.ChatProvider = "HarmonyFormatProvider";
+        //These will be moved to the frontend eventually
+        options.ChatProvider = nameof(HarmonyFormatProvider);
         options.SystemMessage = "Fulfill the request to the best of your abilities.";
-        options.ExtendedProperties.TryAdd("reasoning_level", "medium");
-        options.ExtendedProperties.TryAdd("meta_information", "You are a large language model.");
 
         LatexStreamRewriter lsr = new();
         Response.ContentType = "application/x-ndjson";
 
-        await foreach (var response in _chatGenerator.ContinueChatAsync(history, options).ReadAllAsync())
+        await foreach (var response in _chatProviderFactory.GetProvider(options.ChatProvider).ContinueChatAsync(history, options).ReadAllAsync())
         {
             response.ContentChunk = lsr.ProcessChunk(response.ContentChunk);
             var jsonChunk = JsonSerializer.Serialize(response);
