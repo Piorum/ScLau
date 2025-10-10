@@ -5,8 +5,10 @@ using ChatBackend.Models;
 
 namespace ChatBackend;
 
-public class HarmonyFormatProvider : IChatProvider
+public class HarmonyFormatProvider(IToolDiscoveryService toolDiscoveryService) : IChatProvider
 {
+    private readonly IToolDiscoveryService _toolDiscoveryService = toolDiscoveryService;
+
     public string Name { get; } = nameof(HarmonyFormatProvider);
 
     public IEnumerable<ProviderOptionDescriptor> ExtendedOptions { get; private set; } =
@@ -26,13 +28,13 @@ public class HarmonyFormatProvider : IChatProvider
 
             while (!isConversationDone)
             {
-                var prompt = new HarmonyFormatHistoryBuilder().WithHistory(history).WithOptions(options).ToString();
+                var prompt = new HarmonyFormatHistoryBuilder(_toolDiscoveryService).WithHistory(history).WithOptions(options).ToString();
 
                 var model = ExtendedOptionDescriptors.Model.GetValue<string>(options);
 
                 var modelOutput = LLMProvider.StreamCompletionAsync($"{prompt}{HarmonyTokens.Start}{HarmonyRoles.Assistant}", model, options);
 
-                ChatState state = new(promptHasAssistantTrail: true)
+                ChatState state = new(_toolDiscoveryService, promptHasAssistantTrail: true)
                 {
                     History = history,
                     Options = options,
@@ -42,7 +44,6 @@ public class HarmonyFormatProvider : IChatProvider
 
                 await foreach (var token in modelOutput.ReadAllAsync())
                 {
-                    Console.WriteLine($"{token}");
                     if (token is null) continue;
 
                     if (state.TokenHandlers.TryGetValue(token, out var handler))
@@ -80,6 +81,8 @@ public class HarmonyFormatProvider : IChatProvider
 
     private class ChatState
     {
+        private IToolDiscoveryService ToolDiscoveryService;
+
         required public ChatHistory History;
         required public ChatOptions Options;
         required public Channel<ModelResponse> Channel;
@@ -92,13 +95,14 @@ public class HarmonyFormatProvider : IChatProvider
         public Guid CurrentMessageId;
         public ContentType ContentType => CurrentChannel == HarmonyChannels.Final ? ContentType.Answer : ContentType.Reasoning;
 
-        private ChatState()
+        private ChatState(IToolDiscoveryService toolDiscoveryService)
         {
+            ToolDiscoveryService = toolDiscoveryService;
             CurrentMessageId = Guid.NewGuid();
         }
 
         //These default values are based off the state given to the AI when prompt is passed with assistant trail ~"<|start|>assistant"
-        public ChatState(bool promptHasAssistantTrail) : this()
+        public ChatState(IToolDiscoveryService toolDiscoveryService, bool promptHasAssistantTrail) : this(toolDiscoveryService)
         {
             if (promptHasAssistantTrail)
                 IncomingRole = false;
@@ -155,11 +159,9 @@ public class HarmonyFormatProvider : IChatProvider
             }
             else
             {
-                Console.WriteLine("Getting Tool Name");
                 string toolName = "unknown";
                 if (!string.IsNullOrEmpty(CurrentChannel))
                 {
-                    Console.WriteLine($"{CurrentChannel}");
                     string prefix = "commentary to=functions.";
                     string suffix = "<|constrain|>json";
 
@@ -167,7 +169,6 @@ public class HarmonyFormatProvider : IChatProvider
                         toolName = CurrentChannel[prefix.Length..^suffix.Length].Trim();
                 }
 
-                Console.WriteLine("Creating Call Message");
                 var callId = $"{Guid.NewGuid()}";
                 var toolCall = ChatMessage.CreateToolMessage(CurrentMessageId, new(Id: callId, ToolName: toolName, Content: $"{sb}", Result: false));
                 History.Messages.Add(toolCall);
@@ -192,7 +193,6 @@ public class HarmonyFormatProvider : IChatProvider
                 }
 
                 //Output result to frontend
-                Console.WriteLine("Sending To The Channel");
                 await Channel.Writer.WriteAsync
                 (
                     new()
@@ -205,7 +205,6 @@ public class HarmonyFormatProvider : IChatProvider
                 );
 
                 //return false, conversation is not over
-                Console.WriteLine("Returning");
                 return false;
             }
 
@@ -228,8 +227,10 @@ public class HarmonyFormatProvider : IChatProvider
 
     }
 
-    private class HarmonyFormatHistoryBuilder
+    private class HarmonyFormatHistoryBuilder(IToolDiscoveryService toolDiscoveryService)
     {
+        private IToolDiscoveryService ToolDiscoveryService = toolDiscoveryService;
+
         private ChatHistory? history;
         private ChatOptions? options;
 
@@ -258,6 +259,8 @@ public class HarmonyFormatProvider : IChatProvider
 
                 Append(HarmonyRoles.System, $"{metaInformation}\nKnowledge cutoff: 2024-06\nCurrent date: {DateTime.Now:yyyy-MM-dd}\n\nReasoning: {reasoningLevel}\n\n# Valid channels: analysis, commentary, final. Channel must be included for every message.");
                 Append(HarmonyRoles.Developer, $"# Instructions\n\n{options.SystemMessage}\n\n");
+
+                
             }
 
             if (history is not null)
