@@ -4,16 +4,24 @@ namespace ChatBackend.Models.Ollama;
 
 public record OllamaRequest
 {
-    [JsonPropertyName("prompt")]
-    public string? Prompt { get; set; }
-
     [JsonPropertyName("model")]
     required public string Model { get; set; }
 
-    [JsonPropertyName("options")]
-    public OllamaOptions Options { get; set; } = new();
+    [JsonPropertyName("prompt")]
+    required public string Prompt { get; set; }
 
-    //This is here to get seralized into the json request, Ollama.cs expects this to be true
+    [JsonPropertyName("options")]
+    public OllamaOptions? Options { get; set; } = null;
+
     [JsonPropertyName("raw")]
     public bool Raw { get; private set; } = true;
+
+    [JsonPropertyName("stream")]
+    public bool Stream { get; private set; } = true;
+
+    [JsonPropertyName("keep_alive")]
+    public int? KeepAlive { get; set; } = null;
+
+    [JsonPropertyName("images")]
+    public List<string>? Images { get; set; } = null;
 }

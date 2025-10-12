@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Channels;
 using ChatBackend.Models;
 using ChatBackend.Models.Ollama;
@@ -9,6 +10,8 @@ namespace ChatBackend;
 
 public static class LLMProvider
 {
+    private static readonly JsonSerializerOptions defaultRequestOptions = new() { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull };
+
     static public ChannelReader<string> StreamCompletionAsync(string prompt, string modelName, ChatOptions options, Channel<string>? existingChannel = null)
     {
         Channel<string> channel = existingChannel ?? Channel.CreateUnbounded<string>();
@@ -23,12 +26,9 @@ public static class LLMProvider
             {
                 Model = modelName,
                 Prompt = prompt,
-                Options = new()
-                {
-                    Temperature = options.Temperature
-                }
+                Options = options.ModelOptions
             };
-            var jsonRequest = JsonSerializer.Serialize(requestBody);
+            var jsonRequest = JsonSerializer.Serialize(requestBody, defaultRequestOptions);
             var request = new HttpRequestMessage(HttpMethod.Post, url)
             {
                 Content = new StringContent(jsonRequest, Encoding.UTF8, "application/json")

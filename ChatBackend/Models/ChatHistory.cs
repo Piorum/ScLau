@@ -4,6 +4,8 @@ public class ChatHistory
 {
     public List<ChatMessage> Messages { get; set; } = [];
 
+    public ChatOptions? LastChatOptions { get; set; } = null;
+
     public DateTime? LastMessageTime => Messages.LastOrDefault()?.Timestamp;
 
     private string? _title;

@@ -50,6 +50,7 @@ public class ChatsController(IChatProviderFactory chatProviderFactory) : Control
         if (ChatsCache.GetChatHistory(chatId, out var history))
         {
             //generate title here
+            
             return Ok(history!.Title);
         }
 
@@ -203,6 +204,7 @@ public class ChatsController(IChatProviderFactory chatProviderFactory) : Control
         //These will be moved to the frontend eventually
         options.ChatProvider = nameof(HarmonyFormatProvider);
         options.SystemMessage = "Fulfill the request to the best of your abilities.";
+        options.ModelOptions = new() { Temperature = 1.2f };
 
         LatexStreamRewriter lsr = new();
         Response.ContentType = "application/x-ndjson";

@@ -1,11 +1,12 @@
 using ChatBackend.Interfaces;
+using ChatBackend.Models.Ollama;
 
 namespace ChatBackend.Models;
 
 public class ChatOptions : IExtensibleProperties
 {
-    public string SystemMessage { get; set; } = "";
     public string ChatProvider { get; set; } = "";
-    public double Temperature { get; set; } = 1.0;
+    public string SystemMessage { get; set; } = "";
+    public OllamaOptions? ModelOptions { get; set; } = null;
     public IDictionary<string, object> ExtendedProperties { get; private set; } = new Dictionary<string, object>();
 }
