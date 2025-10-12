@@ -266,56 +266,127 @@ export const useChat = () => {
     dispatch({ type: 'set_active_chat_id', payload: null });
   }, []);
 
-  const sendMessage = useCallback(async (inputValue: string) => {
-    if (!inputValue.trim()) return;
+    const sendMessage = useCallback(async (inputValue: string) => {
 
-    let chatId = state.activeChatId;
-    if (!chatId) {
-        chatId = randomUUID();
-        dispatch({ type: 'set_active_chat_id', payload: chatId });
-        const newChatItem: ChatListItem = {
-            chatId: chatId,
-            lastMessage: Math.floor(Date.now() / 1000),
-        };
-        dispatch({ type: 'add_chat', payload: newChatItem });
-    }
+      if (!inputValue.trim()) return;
 
-    const userMessageId = randomUUID();
-    const userMessage: Message = {
-      id: userMessageId,
-      text: inputValue,
-      sender: 'user',
-    };
-    dispatch({ type: 'add_user_message', payload: userMessage, chatId });
-    dispatch({ type: 'set_is_responding', payload: true, chatId });
+  
 
-    try {
-      const response = await fetch(`/api/chats/${chatId}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userPrompt: inputValue,
-          userMessageId: userMessageId,
-        }),
-      });
+      let chatId = state.activeChatId;
 
-      if (!response.ok || !response.body) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      const isNewChat = !chatId;
+
+      if (isNewChat) {
+
+          chatId = randomUUID();
+
+          dispatch({ type: 'set_active_chat_id', payload: chatId });
+
+          const newChatItem: ChatListItem = {
+
+              chatId: chatId,
+
+              lastMessage: Math.floor(Date.now() / 1000),
+
+              title: 'New Chat',
+
+          };
+
+          dispatch({ type: 'add_chat', payload: newChatItem });
+
       }
 
-      for await (const event of streamChat(response.body.getReader())) {
-        dispatch({ type: 'stream_event', payload: event, chatId });
+  
+
+      const userMessageId = randomUUID();
+
+      const userMessage: Message = {
+
+        id: userMessageId,
+
+        text: inputValue,
+
+        sender: 'user',
+
+      };
+
+      dispatch({ type: 'add_user_message', payload: userMessage, chatId: chatId! });
+
+      dispatch({ type: 'set_is_responding', payload: true, chatId: chatId! });
+
+  
+
+      try {
+
+        const response = await fetch(`/api/chats/${chatId}/messages`, {
+
+          method: 'POST',
+
+          headers: { 'Content-Type': 'application/json' },
+
+          body: JSON.stringify({
+
+            userPrompt: inputValue,
+
+            userMessageId: userMessageId,
+
+          }),
+
+        });
+
+  
+
+        if (!response.ok || !response.body) {
+
+          throw new Error(`HTTP error! status: ${response.status}`);
+
+        }
+
+  
+
+        for await (const event of streamChat(response.body.getReader())) {
+
+          dispatch({ type: 'stream_event', payload: event, chatId: chatId! });
+
+        }
+
+  
+
+        if (isNewChat) {
+
+          try {
+
+            await fetch(`/api/chats/${chatId}/title`);
+
+          } catch (error) {
+
+            console.error('Failed to generate title:', error);
+
+          }
+
+        }
+
+  
+
+        loadChats();
+
+      } catch (error) {
+
+        const errorId = randomUUID();
+
+        const errorMessage = `Error: ${error instanceof Error ? error.message : String(error)}`;
+
+        const event: MessageStreamEvent = { type: 'reasoning_started', payload: { messageId: errorId, chunk: errorMessage } };
+
+        dispatch({ type: 'stream_event', payload: event, chatId: chatId! });
+
+        const doneEvent: MessageStreamEvent = { type: 'stream_done' };
+
+        dispatch({ type: 'stream_event', payload: doneEvent, chatId: chatId! });
+
       }
-      loadChats();
-    } catch (error) {
-      const errorId = randomUUID();
-      const errorMessage = `Error: ${error instanceof Error ? error.message : String(error)}`;
-      const event: MessageStreamEvent = { type: 'reasoning_started', payload: { messageId: errorId, chunk: errorMessage } };
-      dispatch({ type: 'stream_event', payload: event, chatId });
-      const doneEvent: MessageStreamEvent = { type: 'stream_done' };
-      dispatch({ type: 'stream_event', payload: doneEvent, chatId });
-    }
-  }, [state.activeChatId, loadChats]);
+
+    }, [state.activeChatId, loadChats]);
 
   const deleteMessage = useCallback((messageId: string | string[]) => {
     if (Array.isArray(messageId)) {

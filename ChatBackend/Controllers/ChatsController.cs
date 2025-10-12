@@ -59,7 +59,9 @@ public class ChatsController(IChatProviderFactory chatProviderFactory) : Control
             for (var i = history.Messages.Count - 1; i >= 0; i--)
             {
                 var message = history.Messages[i];
-                sb.Append($"{message.Role}: \"{message.Content}\"\n\n");
+                
+                if(message.ContentType != ContentType.Reasoning)
+                    sb.Append($"{message.Role}: \"{message.Content}\"\n\n");
 
                 if (message.Role == MessageRole.User)
                     break;
@@ -225,6 +227,8 @@ public class ChatsController(IChatProviderFactory chatProviderFactory) : Control
 
     private async Task StreamChatResponse(ChatHistory history, ChatOptions options)
     {
+        history.LastChatOptions = options;
+
         //These will be moved to the frontend eventually
         options.ChatProvider = nameof(HarmonyFormatProvider);
         options.SystemMessage = "Fulfill the request to the best of your abilities.";

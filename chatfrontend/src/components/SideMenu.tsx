@@ -28,7 +28,7 @@ const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose, onSettingsClick, c
             .sort((a, b) => b.lastMessage - a.lastMessage)
             .map(chat => (
             <button key={chat.chatId} onClick={() => onChatSelect(chat.chatId)} className={`menu-button ${chat.chatId === currentChatId ? 'active' : ''}`}>
-              <span className="menu-button-text">Chat {new Date(chat.lastMessage * 1000).toLocaleString()}</span>
+              <span className="menu-button-text">{chat.title || `Chat ${new Date(chat.lastMessage * 1000).toLocaleString()}`}</span>
             </button>
           ))}
         </div>

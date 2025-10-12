@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import './App.css';
 import './ChatMessage.css';
 import './ChatHistory.css';
@@ -30,6 +30,13 @@ function App() {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const { theme } = useTheme();
+
+  const chatTitle = useMemo(() => {
+    if (!chatId) return "New Chat";
+    const chat = chats.find(c => c.chatId === chatId);
+    if (!chat) return "New Chat";
+    return chat.title || `Chat ${new Date(chat.lastMessage * 1000).toLocaleString()}`;
+  }, [chatId, chats]);
 
   const handleScroll = (event: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop } = event.currentTarget;
@@ -145,7 +152,7 @@ function App() {
       />
       <SettingsMenu isOpen={isSettingsOpen} onClose={closeSettings} />
       <div className="main-content-wrapper">
-        <TopBar onMenuToggle={toggleMenu} />
+        <TopBar onMenuToggle={toggleMenu} title={chatTitle} />
         <div className="chat-area-wrapper">
 
             <ChatHistory 

@@ -15,6 +15,7 @@ export interface Message {
 
 export interface ChatListItem {
     chatId: string;
+    title: string | null;
     lastMessage: number;
 }
 
