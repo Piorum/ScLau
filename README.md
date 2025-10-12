@@ -5,11 +5,11 @@
 - Markdown/LaTeX/Code Rendering
 - Chats
 - Short-Term Memory
+- Chat Titling
+- All Ollama/GptOss Options
 
 ### Short-Term WIP
-- Chat Titling
 - Chat Modification (Edit/Delete/Branch/Regenerate/Renaming)
-- Full Parameter Options Support
 - Front End Parameter Tuning
 - Persistent Chats
 - Tools
