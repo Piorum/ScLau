@@ -1,7 +1,9 @@
 namespace ChatBackend.Interfaces;
 
-public interface ITool<T>
+public interface ITool { }
+
+public interface ITool<TParams> : ITool
 {
     //Result as JSON string or null on error
-    Task<string?> InvokeAsync(T parameters);
+    Task<string?> InvokeAsync(TParams parameters);
 }

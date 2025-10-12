@@ -9,7 +9,7 @@ public class WeatherParameters
     [ToolParameter("location", "The city and state, e.g. San Francisco, CA", true)]
     public string Location { get; set; } = "";
 
-    [ToolParameter("format", "default: celsius", false)]
+    [ToolParameter("format", "Temperature unit", isRequired: false, defaultValue: WeatherFormats.Celsius)]
     public WeatherFormats Format { get; set; } = WeatherFormats.Celsius;
 }
 

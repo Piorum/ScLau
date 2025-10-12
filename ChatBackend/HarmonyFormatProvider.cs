@@ -5,9 +5,9 @@ using ChatBackend.Models;
 
 namespace ChatBackend;
 
-public class HarmonyFormatProvider(IToolDiscoveryService toolDiscoveryService) : IChatProvider
+public class HarmonyFormatProvider(IToolFactory toolDiscoveryService) : IChatProvider
 {
-    private readonly IToolDiscoveryService _toolDiscoveryService = toolDiscoveryService;
+    private readonly IToolFactory _toolDiscoveryService = toolDiscoveryService;
 
     public string Name { get; } = nameof(HarmonyFormatProvider);
 
@@ -81,7 +81,7 @@ public class HarmonyFormatProvider(IToolDiscoveryService toolDiscoveryService) :
 
     private class ChatState
     {
-        private IToolDiscoveryService ToolDiscoveryService;
+        private IToolFactory ToolDiscoveryService;
 
         required public ChatHistory History;
         required public ChatOptions Options;
@@ -95,14 +95,14 @@ public class HarmonyFormatProvider(IToolDiscoveryService toolDiscoveryService) :
         public Guid CurrentMessageId;
         public ContentType ContentType => CurrentChannel == HarmonyChannels.Final ? ContentType.Answer : ContentType.Reasoning;
 
-        private ChatState(IToolDiscoveryService toolDiscoveryService)
+        private ChatState(IToolFactory toolDiscoveryService)
         {
             ToolDiscoveryService = toolDiscoveryService;
             CurrentMessageId = Guid.NewGuid();
         }
 
         //These default values are based off the state given to the AI when prompt is passed with assistant trail ~"<|start|>assistant"
-        public ChatState(IToolDiscoveryService toolDiscoveryService, bool promptHasAssistantTrail) : this(toolDiscoveryService)
+        public ChatState(IToolFactory toolDiscoveryService, bool promptHasAssistantTrail) : this(toolDiscoveryService)
         {
             if (promptHasAssistantTrail)
                 IncomingRole = false;
@@ -227,9 +227,9 @@ public class HarmonyFormatProvider(IToolDiscoveryService toolDiscoveryService) :
 
     }
 
-    private class HarmonyFormatHistoryBuilder(IToolDiscoveryService toolDiscoveryService)
+    private class HarmonyFormatHistoryBuilder(IToolFactory toolDiscoveryService)
     {
-        private IToolDiscoveryService ToolDiscoveryService = toolDiscoveryService;
+        private IToolFactory ToolDiscoveryService = toolDiscoveryService;
 
         private ChatHistory? history;
         private ChatOptions? options;
