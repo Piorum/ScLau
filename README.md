@@ -9,7 +9,7 @@
 - All Ollama/GptOss Options
 
 ### Short-Term WIP
-- Chat Modification (Edit/Delete/Branch/Regenerate/Renaming)
+- Front End Chat Modification (Edit/Delete/Branch/Regenerate/Renaming)
 - Front End Parameter Tuning
 - Persistent Chats
 - Tools

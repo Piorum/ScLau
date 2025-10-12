@@ -13,7 +13,9 @@ const TopBar: React.FC<TopBarProps> = ({ onMenuToggle, title }) => {
       <button onClick={onMenuToggle} className="menu-toggle-button">
         <HamburgerIcon color="var(--color-text-main)" />
       </button>
-      <h1 className="top-bar-title">{title}</h1>
+      <div className="top-bar-title-bar">
+        <h1 className="top-bar-title">{title}</h1>
+      </div>
     </div>
   );
 };

@@ -1,19 +1,21 @@
 .top-bar {
-  display: flex;
+  display: grid;
   align-items: center;
-  height: 25px;
-  padding: 10px 0px 7px;
+  height: 42px;
+  padding: 0px 10px;
   background-color: var(--color-app-bg);
   border-bottom: 1px solid var(--color-border);
-  flex-shrink: 0; /* Prevent top bar from shrinking */
+  flex-shrink: 0;
+  grid-template-columns: auto 1fr auto;
 }
 
 .menu-toggle-button {
   background: transparent;
   border: none;
   cursor: pointer;
-  padding: 10px;
   border-radius: 50%;
+  grid-column: 1;
+  justify-self: start;
 }
 
 .menu-toggle-button:focus {
@@ -21,11 +23,16 @@
   box-shadow: none;
 }
 
+.top-bar-title-bar {
+  display: flex;
+  justify-content: center
+}
+
 .top-bar-title {
-  font-size: 1.2rem;
-  margin: 0;
-  padding-left: 16px;
-  white-space: nowrap;
+  font-size: 1rem;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+  grid-column: 2;
+  justify-self: center;
 }
