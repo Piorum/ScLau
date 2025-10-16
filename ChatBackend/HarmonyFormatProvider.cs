@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Channels;
@@ -73,7 +74,6 @@ public class HarmonyFormatProvider(IToolFactory toolFactory) : IChatProvider
             await channel.Writer.WriteAsync(new() { IsDone = true });
             channel.Writer.Complete();
 
-
         });
 
 
@@ -82,7 +82,7 @@ public class HarmonyFormatProvider(IToolFactory toolFactory) : IChatProvider
 
     private class ChatState
     {
-        private IToolFactory ToolFactory;
+        private readonly IToolFactory ToolFactory;
 
         required public ChatHistory History;
         required public ChatOptions Options;
@@ -176,33 +176,33 @@ public class HarmonyFormatProvider(IToolFactory toolFactory) : IChatProvider
                 History.Messages.Add(toolCall);
 
                 //Handle tool call
-                string result = "";
-                bool success = false;
-                using(JsonDocument document = JsonDocument.Parse(callArguments))
-                {
-                    var callResult = await ToolFactory.ExecuteTool(toolName, document.RootElement);
+                using JsonDocument document = JsonDocument.Parse(callArguments);
+                
+                var callResult = await ToolFactory.ExecuteTool(toolName, document.RootElement);
 
-                    await Console.Out.WriteLineAsync($"Tool result type {callResult.ResultType} {(callResult.ResultType ==  ToolResultType.Success ? callResult.Result! : callResult.Error!)}");
-                    result = callResult.ResultType == ToolResultType.Success ? callResult.Result! : callResult.Error!;
-                    if (callResult.ResultType == ToolResultType.Success)
-                        success = true;
-                }
-
-                //Append tool call reply to history
                 Guid messageId = Guid.NewGuid();
                 string content;
-                if (success)
+                if (callResult.ResultType == ToolResultType.Success)
                 {
-                    content = result;
+                    content = callResult.Result!;
                     var toolReturn = ChatMessage.CreateToolMessage(messageId, new(Id: callId, ToolName: toolName, Content: content, Result: true));
                     History.Messages.Add(toolReturn);
                 }
                 else
                 {
-                    content = result;
+                    content = callResult.ResultType switch
+                    {
+                        ToolResultType.MalformedToolName => $"Tool name \"{toolName}\" was incorrect, not a tool, or couldn't be parsed.",
+                        ToolResultType.MalformedArguments => $"Arguments for \"{toolName}\" were incorrect or couldn't be parsed.",
+                        ToolResultType.ExecutionError => "An error occured during execution of the tool.",
+                        _ => "Unhandled tool result error type.",
+                    };
+
                     var errorReturn = ChatMessage.CreateSystemMessage(messageId, content, ContentType.Reasoning);
                     errorReturn.ExtendedProperties.Add(ExtendedMessagePropertyKeys.Channel, HarmonyChannels.Commentary);
                     History.Messages.Add(errorReturn);
+
+                    await Console.Out.WriteLineAsync($"Tool call return error.\n\"{toolName}\" :: \"{callArguments}\"\n\n{callResult.Error}");
                 }
 
                 //Output result to frontend
@@ -242,7 +242,7 @@ public class HarmonyFormatProvider(IToolFactory toolFactory) : IChatProvider
 
     private class HarmonyFormatHistoryBuilder(IToolFactory toolFactory)
     {
-        private IToolFactory ToolFactory = toolFactory;
+        private readonly IToolFactory ToolFactory = toolFactory;
 
         private ChatHistory? history;
         private ChatOptions? options;
@@ -270,10 +270,76 @@ public class HarmonyFormatProvider(IToolFactory toolFactory) : IChatProvider
 
                 string metaInformation = ExtendedOptionDescriptors.MetaInformation.GetValue<string>(options);
 
-                Append(HarmonyRoles.System, $"{metaInformation}\nKnowledge cutoff: 2024-06\nCurrent date: {DateTime.Now:yyyy-MM-dd}\n\nReasoning: {reasoningLevel}\n\n# Valid channels: analysis, commentary, final. Channel must be included for every message.");
-                Append(HarmonyRoles.Developer, $"# Instructions\n\n{options.SystemMessage}\n\n");
+                StringBuilder sb = new();
+                bool toolsEnabled = options.EnabledTools is not null && options.EnabledTools.Count > 0;
 
-                
+                sb.Append($"{metaInformation}\nKnowledge cutoff: 2024-06\nCurrent date: {DateTime.Now:yyyy-MM-dd}\n\nReasoning: {reasoningLevel}\n\n# Valid channels: analysis, commentary, final. Channel must be included for every message.");
+                if (toolsEnabled)
+                    sb.Append("\nCalls to these tools must go to the commentary channel: 'functions'.");
+                Append(HarmonyRoles.System, sb.ToString());
+
+                sb.Clear();
+
+                sb.Append($"# Instructions\n{options.SystemMessage}\n");
+                if (toolsEnabled)
+                {
+                    sb.Append("# Tools\n## functions\nnamespace functions {\n");
+
+                    foreach (var tool in options.EnabledTools!)
+                    {
+                        var toolInfo = ToolFactory.GetToolInfo(tool);
+                        if (toolInfo is null) continue;
+
+                        sb.Append($"// {toolInfo.Description}\ntype {toolInfo.Name} = (");
+
+                        if (toolInfo.Parameters.Count > 0)
+                        {
+                            sb.Append("_: {");
+                            foreach (var parameter in toolInfo.Parameters)
+                            {
+                                sb.Append($"\n// {parameter.Description}\n{parameter.Name}{(parameter.IsRequired ? "?" : "")}: ");
+
+                                if (parameter.EnumValues?.Any() == true)
+                                {
+                                    var enumType = string.Join(" | ", parameter.EnumValues.Select(e => $"\"{e.ToLower()}\""));
+                                    sb.Append(enumType);
+                                }
+                                else
+                                {
+                                    string GetType(Type type)
+                                    {
+                                        if (type == typeof(string))
+                                            return "string";
+                                        else if (type == typeof(int) || parameter.Type == typeof(double) || parameter.Type == typeof(float) || parameter.Type == typeof(decimal) || parameter.Type == typeof(long))
+                                            return "number";
+                                        else if (type == typeof(bool))
+                                            return "boolean";
+                                        else if (type.IsArray)
+                                            return $"{GetType(type.GetElementType()!)}[]";
+                                        else if (typeof(IEnumerable).IsAssignableFrom(type) && type != typeof(string))
+                                            return $"{GetType(type.IsGenericType ? type.GetGenericArguments()[0] : typeof(object))}[]";
+                                        else
+                                            return "any";
+                                    }
+
+                                    sb.Append(GetType(parameter.Type));
+                                }
+
+                                sb.Append(',');
+
+                                if (parameter.DefaultValue is not null)
+                                    sb.Append($" // default: {parameter.DefaultValue.ToString()?.ToLower()}");
+                            }
+
+                            sb.Append("\n}");
+                        }
+                        
+                        sb.Append(") => any;");
+                    }
+
+                    sb.Append("\n} // namespace functions");
+                }
+                Append(HarmonyRoles.Developer, sb.ToString());
             }
 
             if (history is not null)
@@ -291,7 +357,7 @@ public class HarmonyFormatProvider(IToolFactory toolFactory) : IChatProvider
                         MessageRole.User => HarmonyRoles.User,
                         MessageRole.Assistant => HarmonyRoles.Assistant,
                         MessageRole.System => HarmonyRoles.System,
-                        _ => throw new System.ComponentModel.InvalidEnumArgumentException(message.Role.ToString(), (int)message.Role, typeof(MessageRole))
+                        _ => throw new ArgumentOutOfRangeException(nameof(message.Role), message.Role, "Unexpected enum value provided.")
                     };
 
                     string? channelText = GetProperty(message, ExtendedMessagePropertyKeys.Channel);

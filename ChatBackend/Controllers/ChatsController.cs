@@ -233,6 +233,7 @@ public class ChatsController(IChatProviderFactory chatProviderFactory) : Control
         options.ChatProvider = nameof(HarmonyFormatProvider);
         options.SystemMessage = "Fulfill the request to the best of your abilities.";
         options.ModelOptions = new() { Temperature = 1.2f };
+        options.EnabledTools = ["get_current_weather"];
 
         LatexStreamRewriter lsr = new();
         Response.ContentType = "application/x-ndjson";
