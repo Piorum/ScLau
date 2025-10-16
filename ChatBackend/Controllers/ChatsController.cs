@@ -55,17 +55,17 @@ public class ChatsController(IChatProviderFactory chatProviderFactory) : Control
             var provider = _chatProviderFactory.GetProvider(history.LastChatOptions.ChatProvider);
             ChatHistory prompt = new();
             StringBuilder sb = new();
-            sb.Append("Chat Excerpt.\n\n");
             for (var i = history.Messages.Count - 1; i >= 0; i--)
             {
                 var message = history.Messages[i];
                 
                 if(message.ContentType != ContentType.Reasoning)
-                    sb.Append($"{message.Role}: \"{message.Content}\"\n\n");
+                    sb.Insert(0, $"{message.Role}: \"{message.Content}\"\n\n");
 
                 if (message.Role == MessageRole.User)
                     break;
             }
+            sb.Insert(0, "Chat Excerpt.\n\n");
 
             prompt.Messages.Add(ChatMessage.CreateSystemMessage(Guid.NewGuid(), sb.ToString()));
 

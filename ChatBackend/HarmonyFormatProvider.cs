@@ -74,6 +74,8 @@ public class HarmonyFormatProvider(IToolFactory toolFactory) : IChatProvider
             await channel.Writer.WriteAsync(new() { IsDone = true });
             channel.Writer.Complete();
 
+            await Console.Out.WriteLineAsync(new HarmonyFormatHistoryBuilder(_toolFactory).WithHistory(history).WithOptions(options).ToString());
+
         });
 
 
@@ -247,6 +249,8 @@ public class HarmonyFormatProvider(IToolFactory toolFactory) : IChatProvider
         private ChatHistory? history;
         private ChatOptions? options;
 
+        private bool ToolsEnabled => options?.EnabledTools is { Count: > 0};
+
         private readonly StringBuilder sb = new();
 
         public HarmonyFormatHistoryBuilder WithHistory(ChatHistory history)
@@ -266,127 +270,141 @@ public class HarmonyFormatProvider(IToolFactory toolFactory) : IChatProvider
 
             if (options is not null)
             {
-                string reasoningLevel = ExtendedOptionDescriptors.ReasoningLevel.GetValue<string>(options);
-
-                string metaInformation = ExtendedOptionDescriptors.MetaInformation.GetValue<string>(options);
-
-                StringBuilder sb = new();
-                bool toolsEnabled = options.EnabledTools is not null && options.EnabledTools.Count > 0;
-
-                sb.Append($"{metaInformation}\nKnowledge cutoff: 2024-06\nCurrent date: {DateTime.Now:yyyy-MM-dd}\n\nReasoning: {reasoningLevel}\n\n# Valid channels: analysis, commentary, final. Channel must be included for every message.");
-                if (toolsEnabled)
-                    sb.Append("\nCalls to these tools must go to the commentary channel: 'functions'.");
-                Append(HarmonyRoles.System, sb.ToString());
-
-                sb.Clear();
-
-                sb.Append($"# Instructions\n{options.SystemMessage}\n");
-                if (toolsEnabled)
-                {
-                    sb.Append("# Tools\n## functions\nnamespace functions {\n");
-
-                    foreach (var tool in options.EnabledTools!)
-                    {
-                        var toolInfo = ToolFactory.GetToolInfo(tool);
-                        if (toolInfo is null) continue;
-
-                        sb.Append($"// {toolInfo.Description}\ntype {toolInfo.Name} = (");
-
-                        if (toolInfo.Parameters.Count > 0)
-                        {
-                            sb.Append("_: {");
-                            foreach (var parameter in toolInfo.Parameters)
-                            {
-                                sb.Append($"\n// {parameter.Description}\n{parameter.Name}{(parameter.IsRequired ? "?" : "")}: ");
-
-                                if (parameter.EnumValues?.Any() == true)
-                                {
-                                    var enumType = string.Join(" | ", parameter.EnumValues.Select(e => $"\"{e.ToLower()}\""));
-                                    sb.Append(enumType);
-                                }
-                                else
-                                {
-                                    string GetType(Type type)
-                                    {
-                                        if (type == typeof(string))
-                                            return "string";
-                                        else if (type == typeof(int) || parameter.Type == typeof(double) || parameter.Type == typeof(float) || parameter.Type == typeof(decimal) || parameter.Type == typeof(long))
-                                            return "number";
-                                        else if (type == typeof(bool))
-                                            return "boolean";
-                                        else if (type.IsArray)
-                                            return $"{GetType(type.GetElementType()!)}[]";
-                                        else if (typeof(IEnumerable).IsAssignableFrom(type) && type != typeof(string))
-                                            return $"{GetType(type.IsGenericType ? type.GetGenericArguments()[0] : typeof(object))}[]";
-                                        else
-                                            return "any";
-                                    }
-
-                                    sb.Append(GetType(parameter.Type));
-                                }
-
-                                sb.Append(',');
-
-                                if (parameter.DefaultValue is not null)
-                                    sb.Append($" // default: {parameter.DefaultValue.ToString()?.ToLower()}");
-                            }
-
-                            sb.Append("\n}");
-                        }
-                        
-                        sb.Append(") => any;");
-                    }
-
-                    sb.Append("\n} // namespace functions");
-                }
-                Append(HarmonyRoles.Developer, sb.ToString());
+                AppendSystemMessage();
+                AppendDeveloperMessage();
             }
 
             if (history is not null)
             {
-                foreach (var message in history.Messages)
-                {
-                    if (message.Role == MessageRole.Tool)
-                    {
-                        AppendTool(message.ToolContext!);
-                        continue;
-                    }
-
-                    string roleText = message.Role switch
-                    {
-                        MessageRole.User => HarmonyRoles.User,
-                        MessageRole.Assistant => HarmonyRoles.Assistant,
-                        MessageRole.System => HarmonyRoles.System,
-                        _ => throw new ArgumentOutOfRangeException(nameof(message.Role), message.Role, "Unexpected enum value provided.")
-                    };
-
-                    string? channelText = GetProperty(message, ExtendedMessagePropertyKeys.Channel);
-
-                    string? endToken = GetProperty(message, ExtendedMessagePropertyKeys.EndToken);
-
-                    Append(roleText, message.Content!, channelText, endToken);
-                }
+                AppendMessageHistory();
             }
 
         }
 
-        private void Append(string roleText, string messageText, string? channelText = null, string? endToken = null)
+        private void AppendSystemMessage()
+        {
+            StringBuilder systemMessage = new();
+            string reasoningLevel = ExtendedOptionDescriptors.ReasoningLevel.GetValue<string>(options!);
+            string metaInformation = ExtendedOptionDescriptors.MetaInformation.GetValue<string>(options!);
+
+            systemMessage.Append($"{metaInformation}\nKnowledge cutoff: 2024-06\nCurrent date: {DateTime.Now:yyyy-MM-dd}\n\nReasoning: {reasoningLevel}\n\n# Valid channels: analysis, commentary, final. Channel must be included for every message.");
+            if (ToolsEnabled)
+                systemMessage.Append("\nCalls to these tools must go to the commentary channel: 'functions'.");
+
+            AppendMessage(HarmonyRoles.System, systemMessage.ToString());
+
+        }
+        private void AppendDeveloperMessage()
+        {
+            StringBuilder developerMessage = new();
+            
+            developerMessage.Append($"# Instructions\n{options!.SystemMessage}\n");
+            if (ToolsEnabled)
+                AppendTools(developerMessage);
+
+            AppendMessage(HarmonyRoles.Developer, developerMessage.ToString());
+
+        }
+
+        private void AppendTools(StringBuilder developerMessage)
+        {
+            developerMessage.Append("# Tools\n## functions\nnamespace functions {\n");
+
+            foreach (var tool in options!.EnabledTools!)
+            {
+                var toolInfo = ToolFactory.GetToolInfo(tool);
+                if (toolInfo is null) continue;
+
+                AppendTool(toolInfo, developerMessage);
+            }
+
+            developerMessage.Append("\n} // namespace functions");
+        }
+
+        private static void AppendTool(ToolInfo toolInfo, StringBuilder developerMessage)
+        {
+            developerMessage.Append($"// {toolInfo.Description}\ntype {toolInfo.Name} = (");
+
+            if (toolInfo.Parameters.Count > 0)
+            {
+                developerMessage.Append("_: {");
+                foreach (var parameter in toolInfo.Parameters)
+                {
+                    developerMessage.Append($"\n// {parameter.Description}\n{parameter.Name}{(parameter.IsRequired ? "" : "?")}: {GetParameterType(parameter)},");
+
+                    if (parameter.DefaultValue is not null)
+                        developerMessage.Append($" // default: {parameter.DefaultValue.ToString()?.ToLower()}");
+                }
+                developerMessage.Append("\n}");
+            }
+
+            developerMessage.Append(") => any;");
+        }
+
+        private static string GetParameterType(ToolParameterInfo parameter) =>
+            parameter.EnumValues?.Any() == true
+                ? string.Join(" | ", parameter.EnumValues.Select(e => $"\"{e.ToLower()}\""))
+                : GetTypeType(parameter.Type);
+
+        private static string GetTypeType(Type type) =>
+            type switch
+            {
+                Type t when t == typeof(string) => "string",
+                Type t when t == typeof(int) ||
+                    t == typeof(double) ||
+                    t == typeof(float) ||
+                    t == typeof(decimal) ||
+                    t == typeof(long) => "number",
+                Type t when t == typeof(bool) => "boolean",
+                Type t when t.IsArray => $"{GetTypeType(type.GetElementType()!)}[]",
+                Type t when typeof(IEnumerable).IsAssignableFrom(t) && t != typeof(string) => $"{GetTypeType(t.IsGenericType ? t.GetGenericArguments()[0] : typeof(object))}[]",
+                _ => "any"
+            };
+        
+        private void AppendMessageHistory()
+        {
+            foreach (var message in history!.Messages)
+            {
+                if (message.Role == MessageRole.Tool)
+                {
+                    AppendToolMessage(message.ToolContext!);
+                    continue;
+                }
+
+                string roleText = message.Role switch
+                {
+                    MessageRole.User => HarmonyRoles.User,
+                    MessageRole.Assistant => HarmonyRoles.Assistant,
+                    MessageRole.System => HarmonyRoles.System,
+                    _ => throw new ArgumentOutOfRangeException(nameof(message.Role), message.Role, "Unexpected enum value provided.")
+                };
+
+                string? channelText = GetExtendedProperty(message, ExtendedMessagePropertyKeys.Channel);
+
+                string? endToken = GetExtendedProperty(message, ExtendedMessagePropertyKeys.EndToken);
+
+                AppendMessage(roleText, message.Content!, channelText, endToken);
+            }
+        }
+
+        private void AppendMessage(string roleText, string messageText, string? channelText = null, string? endToken = null)
         {
             sb.Append($"{HarmonyTokens.Start}{roleText}");
             if (channelText is not null)
                 sb.Append($"{HarmonyTokens.Channel}{channelText}");
             sb.Append($"{HarmonyTokens.Message}{messageText}");
-            sb.Append($"{endToken ?? HarmonyTokens.End}");
+            sb.Append(endToken ?? HarmonyTokens.End);
         }
 
-        private void AppendTool(ToolContext toolContext)
+        private void AppendToolMessage(ToolContext toolContext)
         {
-            sb.Append($"{HarmonyTokens.Start}{(toolContext.Result ? $"{toolContext.ToolName} to=assistant" : HarmonyRoles.Assistant)}");
-            sb.Append($"{HarmonyTokens.Channel}{HarmonyChannels.Commentary}{(toolContext.Result ? "" : $"to=functions.{toolContext.ToolName} <|constrain|>json")}");
+            sb.Append($"{HarmonyTokens.Start}{(toolContext.Result ? $"functions.{toolContext.ToolName} to=assistant" : HarmonyRoles.Assistant)}");
+            sb.Append($"{HarmonyTokens.Channel}{HarmonyChannels.Commentary}{(toolContext.Result ? "" : $" to=functions.{toolContext.ToolName} <|constrain|>json")}");
             sb.Append($"{HarmonyTokens.Message}{toolContext.Content}");
+            sb.Append(toolContext.Result ? HarmonyTokens.End : HarmonyTokens.Call);
         }
 
-        private static string? GetProperty(ChatMessage message, string key) =>
+        private static string? GetExtendedProperty(ChatMessage message, string key) =>
             message.ExtendedProperties.TryGetValue(key, out var val) ? val as string : null;
 
         public override string ToString()
