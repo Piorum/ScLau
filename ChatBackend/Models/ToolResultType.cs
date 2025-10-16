@@ -4,6 +4,6 @@ public enum ToolResultType
 {
     Success,
     MalformedToolName,
-    MalformedParameters,
+    MalformedArguments,
     ExecutionError
 }

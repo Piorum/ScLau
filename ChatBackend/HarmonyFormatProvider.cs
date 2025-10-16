@@ -1,13 +1,14 @@
 using System.Text;
+using System.Text.Json;
 using System.Threading.Channels;
 using ChatBackend.Interfaces;
 using ChatBackend.Models;
 
 namespace ChatBackend;
 
-public class HarmonyFormatProvider(IToolFactory toolDiscoveryService) : IChatProvider
+public class HarmonyFormatProvider(IToolFactory toolFactory) : IChatProvider
 {
-    private readonly IToolFactory _toolDiscoveryService = toolDiscoveryService;
+    private readonly IToolFactory _toolFactory = toolFactory;
 
     public string Name { get; } = nameof(HarmonyFormatProvider);
 
@@ -28,13 +29,13 @@ public class HarmonyFormatProvider(IToolFactory toolDiscoveryService) : IChatPro
 
             while (!isConversationDone)
             {
-                var prompt = new HarmonyFormatHistoryBuilder(_toolDiscoveryService).WithHistory(history).WithOptions(options).ToString();
+                var prompt = new HarmonyFormatHistoryBuilder(_toolFactory).WithHistory(history).WithOptions(options).ToString();
 
                 var model = ExtendedOptionDescriptors.Model.GetValue<string>(options);
 
                 var modelOutput = LLMProvider.StreamCompletionAsync($"{prompt}{HarmonyTokens.Start}{HarmonyRoles.Assistant}", model, options);
 
-                ChatState state = new(_toolDiscoveryService, promptHasAssistantTrail: true)
+                ChatState state = new(_toolFactory, promptHasAssistantTrail: true)
                 {
                     History = history,
                     Options = options,
@@ -81,7 +82,7 @@ public class HarmonyFormatProvider(IToolFactory toolDiscoveryService) : IChatPro
 
     private class ChatState
     {
-        private IToolFactory ToolDiscoveryService;
+        private IToolFactory ToolFactory;
 
         required public ChatHistory History;
         required public ChatOptions Options;
@@ -97,7 +98,7 @@ public class HarmonyFormatProvider(IToolFactory toolDiscoveryService) : IChatPro
 
         private ChatState(IToolFactory toolDiscoveryService)
         {
-            ToolDiscoveryService = toolDiscoveryService;
+            ToolFactory = toolDiscoveryService;
             CurrentMessageId = Guid.NewGuid();
         }
 
@@ -170,23 +171,35 @@ public class HarmonyFormatProvider(IToolFactory toolDiscoveryService) : IChatPro
                 }
 
                 var callId = $"{Guid.NewGuid()}";
-                var toolCall = ChatMessage.CreateToolMessage(CurrentMessageId, new(Id: callId, ToolName: toolName, Content: $"{sb}", Result: false));
+                var callArguments = sb.ToString();
+                var toolCall = ChatMessage.CreateToolMessage(CurrentMessageId, new(Id: callId, ToolName: toolName, Content: callArguments, Result: false));
                 History.Messages.Add(toolCall);
 
                 //Handle tool call
+                string result = "";
+                bool success = false;
+                using(JsonDocument document = JsonDocument.Parse(callArguments))
+                {
+                    var callResult = await ToolFactory.ExecuteTool(toolName, document.RootElement);
+
+                    await Console.Out.WriteLineAsync($"Tool result type {callResult.ResultType} {(callResult.ResultType ==  ToolResultType.Success ? callResult.Result! : callResult.Error!)}");
+                    result = callResult.ResultType == ToolResultType.Success ? callResult.Result! : callResult.Error!;
+                    if (callResult.ResultType == ToolResultType.Success)
+                        success = true;
+                }
 
                 //Append tool call reply to history
                 Guid messageId = Guid.NewGuid();
                 string content;
-                if (toolName == "get_current_weather")
+                if (success)
                 {
-                    content = "It is Sunny, clear skies, 86F";
+                    content = result;
                     var toolReturn = ChatMessage.CreateToolMessage(messageId, new(Id: callId, ToolName: toolName, Content: content, Result: true));
                     History.Messages.Add(toolReturn);
                 }
                 else
                 {
-                    content = "Error: Tool is unavailable.";
+                    content = result;
                     var errorReturn = ChatMessage.CreateSystemMessage(messageId, content, ContentType.Reasoning);
                     errorReturn.ExtendedProperties.Add(ExtendedMessagePropertyKeys.Channel, HarmonyChannels.Commentary);
                     History.Messages.Add(errorReturn);
@@ -227,9 +240,9 @@ public class HarmonyFormatProvider(IToolFactory toolDiscoveryService) : IChatPro
 
     }
 
-    private class HarmonyFormatHistoryBuilder(IToolFactory toolDiscoveryService)
+    private class HarmonyFormatHistoryBuilder(IToolFactory toolFactory)
     {
-        private IToolFactory ToolDiscoveryService = toolDiscoveryService;
+        private IToolFactory ToolFactory = toolFactory;
 
         private ChatHistory? history;
         private ChatOptions? options;
