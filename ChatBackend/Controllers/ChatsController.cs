@@ -63,8 +63,8 @@ public class ChatsController(IChatCache chatCache, IChatProviderFactory chatProv
             for (var i = history.Messages.Count - 1; i >= 0; i--)
             {
                 var message = history.Messages[i];
-                
-                if(message.ContentType != ContentType.Reasoning)
+
+                if (message.ContentType != ContentType.Reasoning)
                     sb.Insert(0, $"{message.Role}: \"{message.Content}\"\n\n");
 
                 if (message.Role == MessageRole.User)

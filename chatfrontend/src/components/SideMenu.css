@@ -111,6 +111,9 @@
   color: var(--color-text-main);
   margin-top: 3px;
 }
+.menu-button-actions button:nth-child(2):hover {
+  color: var(--color-destructive);
+}
 
 .edit-chat-title-container {
   display: flex;
