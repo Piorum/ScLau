@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import SettingsIcon from '../icons/SettingsIcon';
 import './SideMenu.css';
 import { ChatListItem } from '../types';
@@ -71,7 +71,10 @@ const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose, onSettingsClick, c
                     <button onClick={handleCancelClick}><XIcon /></button>
                   </div>
                 ) : (
-                  <button onClick={() => onChatSelect(chat.chatId)} className={`menu-button ${chat.chatId === currentChatId ? 'active' : ''}`}>
+                  <button 
+                    onClick={() => onChatSelect(chat.chatId)} 
+                    className={`menu-button ${chat.chatId === currentChatId ? 'active' : ''}`}
+                  >
                     <span className="menu-button-text">{chat.title || `Chat ${new Date(chat.lastMessage * 1000).toLocaleString()}`}</span>
                     <div className="menu-button-actions">
                       <button onClick={(e) => { e.stopPropagation(); handleEditClick(chat.chatId, chat.title || ''); }}><EditIcon /></button>

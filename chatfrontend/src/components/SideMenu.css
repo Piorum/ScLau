@@ -70,6 +70,7 @@
   gap: 10px;
   flex-shrink: 0;
   position: relative; /* Added for positioning actions */
+  height: 40px;
 }
 
 .menu-button-container {
@@ -77,40 +78,66 @@
 }
 
 .menu-button .menu-button-actions {
-  display: none; /* Hide actions by default */
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  gap: 5px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: opacity 0.15s ease-in-out, transform 0.15s ease-in-out;
 }
 
 .menu-button:hover .menu-button-actions {
-  display: flex; /* Show actions on hover */
+  opacity: 1;
+  max-width: 150px;
+}
+.menu-button:hover .menu-button-text {
+  max-width: 184px;
+}
+
+.menu-button-text {
+  flex-grow: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: flex-grow 0.15s ease-in-out, transform 0.15s ease-in-out;
 }
 
 .menu-button-actions button {
   background: none;
   border: none;
   cursor: pointer;
-  padding: 2px;
+  padding: 2px 5px;
   color: var(--color-text-main);
+  margin-top: 3px;
 }
 
 .edit-chat-title-container {
   display: flex;
   align-items: center;
   gap: 5px;
-  padding: 10px 15px;
+  padding: 4px;
+  padding-right: 10px;
   border: 1px solid var(--color-border);
   border-radius: 10px;
+  background-color: var(--color-component-bg);
 }
 
 .edit-chat-title-input {
   flex-grow: 1;
   background: none;
-  border: none;
+  border: 1px solid var(--color-border);
+  border-radius: 5px;
   color: var(--color-text-highlight);
+  font-size: .9em;
+  resize: none;
+  padding: 5px;
+  min-height: 1em;
+}
+
+.edit-chat-title-input:focus {
+  outline: none;
+  border-color: var(--color-text-highlight);
 }
 
 .edit-chat-title-container button {
@@ -119,6 +146,7 @@
   cursor: pointer;
   padding: 2px;
   color: var(--color-text-main);
+  margin-top: 4px;
 }
 
 .menu-button:first-child {
