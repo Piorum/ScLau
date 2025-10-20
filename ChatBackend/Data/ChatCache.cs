@@ -5,81 +5,82 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ChatBackend.Data;
 
-public class ChatCache : IChatCache
+public class ChatCache(IDbContextFactory<ChatContext> contextFactory) : IChatCache
 {
     private readonly ConcurrentDictionary<Guid, ChatHistory> _chats = [];
-    private readonly IDbContextFactory<ChatContext> _contextFactory;
+    private readonly IDbContextFactory<ChatContext> _contextFactory = contextFactory;
 
-    public ChatCache(IDbContextFactory<ChatContext> contextFactory)
-    {
-        _contextFactory = contextFactory;
-
-        IntializeCache();
-    }
-
-    private void IntializeCache()
+    public IEnumerable<object> ListChats()
     {
         using var context = _contextFactory.CreateDbContext();
-        var histories = context.ChatHistories.AsNoTracking().ToList();
-        foreach (var history in histories)
-            _chats.TryAdd(history.Id, history);
+
+        return context.ChatHistories
+            .AsNoTracking()
+            .Select(ch => new
+            {
+                ch.ChatId,
+                ch.Title,
+                LastMessage = new DateTimeOffset(ch.LastMessageTime ?? DateTime.UnixEpoch).ToUnixTimeSeconds()
+            }).ToList();
     }
 
-    public IEnumerable<object> ListChats() =>
-        _chats.Select(kvp => new
-        {
-            ChatId = kvp.Key,
-            LastMessage = new DateTimeOffset(kvp.Value.LastMessageTime ?? DateTime.UnixEpoch).ToUnixTimeSeconds(),
-            kvp.Value.Title
-        });
-
-    public Task<ChatHistory?> GetChatHistory(Guid key)
+    public async Task<ChatHistory?> GetChatHistory(Guid ChatId)
     {
-        _chats.TryGetValue(key, out var history);
-        return Task.FromResult(history);
+        if (_chats.TryGetValue(ChatId, out var cachedHistory))
+            return cachedHistory;
+
+        using var context = await _contextFactory.CreateDbContextAsync();
+        var history = await context.ChatHistories
+            .AsNoTracking()
+            .FirstOrDefaultAsync(ch => ch.ChatId == ChatId);
+
+        if (history is not null)
+            _chats.TryAdd(ChatId, history);
+
+        return history;
     }
 
-    public async Task<ChatHistory> GetOrCreateChatHistory(Guid key)
+    public async Task<ChatHistory> GetOrCreateChatHistory(Guid ChatId)
     {
-        var history = await GetChatHistory(key);
+        var history = await GetChatHistory(ChatId);
         if (history is not null)
             return history;
 
-        var newHistory = new ChatHistory { Id = key };
+        var newHistory = new ChatHistory { ChatId = ChatId };
 
-        using (var context = _contextFactory.CreateDbContext())
+        using (var context = await _contextFactory.CreateDbContextAsync())
         {
             context.ChatHistories.Add(newHistory);
             await context.SaveChangesAsync();
         }
 
-        _chats.TryAdd(key, newHistory);
+        _chats.TryAdd(ChatId, newHistory);
 
         return newHistory;
     }
 
     public async Task<Guid> CreateChatHistory(ChatHistory history)
     {
-        if (history.Id == Guid.Empty)
-            history.Id = Guid.NewGuid();
+        if (history.ChatId == Guid.Empty)
+            history.ChatId = Guid.NewGuid();
 
-        using (var context = _contextFactory.CreateDbContext())
+        using (var context = await _contextFactory.CreateDbContextAsync())
         {
             context.ChatHistories.Add(history);
             await context.SaveChangesAsync();
         }
 
-        _chats.TryAdd(history.Id, history);
+        _chats.TryAdd(history.ChatId, history);
 
-        return history.Id;
+        return history.ChatId;
     }
 
-    public async Task<bool> RemoveChatHistory(Guid key)
+    public async Task<bool> RemoveChatHistory(Guid ChatId)
     {
-        _chats.TryRemove(key, out var _);
+        _chats.TryRemove(ChatId, out var _);
 
-        using var context = _contextFactory.CreateDbContext();
-        var historyToRemove = await context.ChatHistories.FindAsync(key);
+        using var context = await _contextFactory.CreateDbContextAsync();
+        var historyToRemove = await context.ChatHistories.FindAsync(ChatId);
         if (historyToRemove is not null)
         {
             context.ChatHistories.Remove(historyToRemove);
@@ -92,12 +93,12 @@ public class ChatCache : IChatCache
 
     public async Task<bool> UpdateChatHistory(ChatHistory history)
     {
-        using var context = _contextFactory.CreateDbContext();
+        history.LastMessageTime = history.Messages.LastOrDefault()?.Timestamp;
 
+        using var context = await _contextFactory.CreateDbContextAsync();
         context.ChatHistories.Update(history);
 
         var changedCount = await context.SaveChangesAsync();
-
         return changedCount > 0;
     }
 

@@ -2,12 +2,12 @@ namespace ChatBackend.Models;
 
 public class ChatHistory
 {
-    public Guid Id { get; set; } //PK
+    public Guid ChatId { get; set; } //PK
     public List<ChatMessage> Messages { get; set; } = [];
     public ChatOptions? LastChatOptions { get; set; } = null;
     private string? _title;
 
-    public DateTime? LastMessageTime => Messages.LastOrDefault()?.Timestamp;
+    public DateTime? LastMessageTime = null;
 
     public string Title
     {

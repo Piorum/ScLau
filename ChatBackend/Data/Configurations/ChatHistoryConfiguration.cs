@@ -20,7 +20,7 @@ public class ChatHistoryConfiguration : IEntityTypeConfiguration<ChatHistory>
 
     public void Configure(EntityTypeBuilder<ChatHistory> builder)
     {
-        builder.HasKey(ch => ch.Id);
+        builder.HasKey(ch => ch.ChatId);
 
         builder.Property(ch => ch.Messages)
             .HasConversion(
@@ -29,12 +29,12 @@ public class ChatHistoryConfiguration : IEntityTypeConfiguration<ChatHistory>
             )
             .HasColumnType("jsonb")        
             .Metadata.SetValueComparer(
-            new ValueComparer<List<ChatMessage>>(
-                (c1, c2) => c1!.SequenceEqual(c2!),
-                c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
-                c => c.ToList()
-            )
-        );;
+                new ValueComparer<List<ChatMessage>>(
+                    (c1, c2) => c1!.SequenceEqual(c2!),
+                    c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                    c => c.ToList()
+                )
+            );
 
         builder.Property(ch => ch.LastChatOptions)
             .HasConversion(
@@ -45,7 +45,8 @@ public class ChatHistoryConfiguration : IEntityTypeConfiguration<ChatHistory>
 
         builder.Property(ch => ch.Title).HasField("_title").UsePropertyAccessMode(PropertyAccessMode.Field).IsRequired(false);
 
-        builder.Ignore(ch => ch.LastMessageTime);
+        builder.Property(ch => ch.LastMessageTime)
+            .HasColumnType("timestamp with time zone");
         
     }
 }
