@@ -2,15 +2,15 @@ using Microsoft.AspNetCore.Mvc;
 using ChatBackend.Models;
 using System.Text.Json;
 using System.Text;
-using ChatBackend.Data;
 using ChatBackend.Interfaces;
 
 namespace ChatBackend.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class ChatsController(IChatProviderFactory chatProviderFactory) : ControllerBase
+public class ChatsController(IChatCache chatCache, IChatProviderFactory chatProviderFactory) : ControllerBase
 {
+    private readonly IChatCache _chatCache = chatCache;
     private readonly IChatProviderFactory _chatProviderFactory = chatProviderFactory;
 
     // GET /api/chats
@@ -18,25 +18,29 @@ public class ChatsController(IChatProviderFactory chatProviderFactory) : Control
     [HttpGet]
     public IActionResult GetChats()
     {
-        return Ok(ChatsCache.ListChats());
+        return Ok(_chatCache.ListChats());
     }
 
     // GET /api/chats/{chatId}
     // Streams specified chat's message history
     [HttpGet("{chatId:guid}")]
-    public async Task GetChat(Guid chatId)
+    public async Task<IActionResult> GetChat(Guid chatId)
     {
-        ChatsCache.GetOrCreateChatHistory(chatId, out var history);
+        var history = await _chatCache.GetChatHistory(chatId);
+
+        if (history is null)
+            return NotFound();
 
         await StreamExistingMessagesAsync(history.Messages);
+        return new EmptyResult();
     }
 
     // DELETE /api/chats/{chatId}
     // Deletes specified chat
     [HttpDelete("{chatId:guid}")]
-    public IActionResult DeleteChat(Guid chatId)
+    public async Task<IActionResult> DeleteChat(Guid chatId)
     {
-        if (ChatsCache.RemoveChatHistory(chatId))
+        if (await _chatCache.RemoveChatHistory(chatId))
             return NoContent();
 
         return NotFound();
@@ -47,7 +51,8 @@ public class ChatsController(IChatProviderFactory chatProviderFactory) : Control
     [HttpGet("{chatId:guid}/title")]
     public async Task<IActionResult> GetTitle(Guid chatId)
     {
-        if (ChatsCache.GetChatHistory(chatId, out var history))
+        var history = await _chatCache.GetChatHistory(chatId);
+        if (history is not null)
         {
             if (history!.LastChatOptions is null || history.Messages.Count == 0)
                 return NotFound($"Chat with ID \"{chatId}\" has no valid last options or not enough messages to generate a title.");
@@ -77,6 +82,7 @@ public class ChatsController(IChatProviderFactory chatProviderFactory) : Control
             }
 
             history.Title = sb.ToString().Trim();
+            await _chatCache.UpdateChatHistory(history);
             return Ok(history.Title);
         }
 
@@ -86,11 +92,13 @@ public class ChatsController(IChatProviderFactory chatProviderFactory) : Control
     // PUT /api/chats/{chatId}/title
     // Updates specified chat's title
     [HttpPut("{chatId:guid}/title")]
-    public IActionResult ReplaceTitle(Guid chatId, [FromBody] PostTitleRequest request)
+    public async Task<IActionResult> ReplaceTitle(Guid chatId, [FromBody] PostTitleRequest request)
     {
-        if (ChatsCache.GetChatHistory(chatId, out var history))
+        var history = await _chatCache.GetChatHistory(chatId);
+        if (history is not null)
         {
             history!.Title = request.Title;
+            await _chatCache.UpdateChatHistory(history);
             return NoContent();
         }
 
@@ -103,7 +111,7 @@ public class ChatsController(IChatProviderFactory chatProviderFactory) : Control
     [HttpPost("{chatId:guid}/messages")]
     public async Task PostMessage(Guid chatId, [FromBody] PostMessageRequest request)
     {
-        ChatsCache.GetOrCreateChatHistory(chatId, out var history);
+        var history = await _chatCache.GetOrCreateChatHistory(chatId);
 
         if (!string.IsNullOrEmpty(request.UserPrompt))
             history.Messages.Add(ChatMessage.CreateUserMessage(request.UserMessageId, request.UserPrompt));
@@ -115,12 +123,16 @@ public class ChatsController(IChatProviderFactory chatProviderFactory) : Control
     // DELETE chats/{chatId}/messages/{messageId}
     // Deletes specified message from specified chat
     [HttpDelete("{chatId:guid}/messages/{messageId:guid}")]
-    public IActionResult DeleteMessage(Guid chatId, Guid messageId)
+    public async Task<IActionResult> DeleteMessage(Guid chatId, Guid messageId)
     {
-        if (ChatsCache.GetChatHistory(chatId, out var history))
+        var history = await _chatCache.GetChatHistory(chatId);
+        if (history is not null)
         {
             if (history!.Messages.RemoveAll(e => e.MessageId == messageId) > 0)
+            {
+                await _chatCache.UpdateChatHistory(history);
                 return NoContent();
+            }
                 
             return NotFound($"Message with ID \"{messageId}\" not found in chat with ID \"{chatId}\".");
         }
@@ -130,9 +142,10 @@ public class ChatsController(IChatProviderFactory chatProviderFactory) : Control
     // PUT chats/{chatId}/messages/{messageId}
     // Edits message content of a specified message from specified chat
     [HttpPut("{chatId:guid}/messages/{messageId:guid}")]
-    public IActionResult EditMessage(Guid chatId, Guid messageId, [FromBody] PostMessageContentRequest request)
+    public async Task<IActionResult> EditMessage(Guid chatId, Guid messageId, [FromBody] PostMessageContentRequest request)
     {
-        if (ChatsCache.GetChatHistory(chatId, out var history))
+        var history = await _chatCache.GetChatHistory(chatId);
+        if (history is not null)
         {
             var message = history!.Messages.FirstOrDefault(e => e.MessageId == messageId);
             if (message is not null)
@@ -142,6 +155,7 @@ public class ChatsController(IChatProviderFactory chatProviderFactory) : Control
                 else
                     message.ToolContext = message.ToolContext! with { Content = request.Content };
 
+                await _chatCache.UpdateChatHistory(history);
                 return NoContent();
             }
             return NotFound($"Message with ID \"{messageId}\" not found in chat with ID \"{chatId}\".");
@@ -154,7 +168,8 @@ public class ChatsController(IChatProviderFactory chatProviderFactory) : Control
     [HttpPost("{chatId:guid}/messages{messageId:guid}/regenerate")]
     public async Task<IActionResult> PostRegenerateMessage(Guid chatId, Guid messageId, [FromBody] PostMessageRequest request)
     {
-        if (!ChatsCache.GetChatHistory(chatId, out var history))
+        var history = await _chatCache.GetChatHistory(chatId);
+        if (history is null)
             return NotFound($"Chat with ID \"{chatId}\" not found.");
 
         var messages = history!.Messages;
@@ -174,7 +189,10 @@ public class ChatsController(IChatProviderFactory chatProviderFactory) : Control
             return NotFound($"No user message found before message with ID \"{messageId}\" in chat with ID \"{chatId}\".");
 
         if (lastUserIndex < messages.Count - 1)
+        {
             messages.RemoveRange(lastUserIndex + 1, messages.Count - (lastUserIndex + 1));
+            await _chatCache.UpdateChatHistory(history);
+        }
 
         var options = request.Options ?? new ChatOptions();
         await StreamChatResponse(history, options);
@@ -188,7 +206,8 @@ public class ChatsController(IChatProviderFactory chatProviderFactory) : Control
     [HttpGet("{chatId:guid}/messages/{messageId:guid}/branch")]
     public async Task<IActionResult> GetBranch(Guid chatId, Guid messageId)
     {
-        if (!ChatsCache.GetChatHistory(chatId, out var baseHistory))
+        var baseHistory = await _chatCache.GetChatHistory(chatId);
+        if (baseHistory is null)
             return NotFound($"Chat with ID \"{chatId}\" not found.");
 
         var branchPointIndex = baseHistory!.Messages.FindIndex(m => m.MessageId == messageId);
@@ -203,7 +222,7 @@ public class ChatsController(IChatProviderFactory chatProviderFactory) : Control
         newHistory.Messages.AddRange(newMessages);
         newHistory.Title = baseHistory.Title;
 
-        var newChatId = ChatsCache.CreateChatHistory(newHistory);
+        var newChatId = await _chatCache.CreateChatHistory(newHistory);
 
         Response.Headers.Append("X-New-Chat-Id", newChatId.ToString());
         await StreamExistingMessagesAsync(newHistory.Messages);
@@ -245,6 +264,8 @@ public class ChatsController(IChatProviderFactory chatProviderFactory) : Control
             await Response.WriteAsync(jsonChunk + "\n");
             await Response.Body.FlushAsync();
         }
+
+        await _chatCache.UpdateChatHistory(history);
     }
 
     private class LatexStreamRewriter

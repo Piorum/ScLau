@@ -1,10 +1,12 @@
+using System.Text.Json.Serialization;
 using ChatBackend.Interfaces;
 
 namespace ChatBackend.Models;
 
 public record ChatMessage : IExtensibleProperties
 {
-    public Guid MessageId { get; private set; }
+    public Guid MessageId { get; private set; } //PK
+    public Guid ChatHistoryId { get; set; } //FK
     public MessageRole Role { get; private set; }
     public string? Content { get; set; } = null;
     public ToolContext? ToolContext { get; set; } = null;
@@ -12,6 +14,7 @@ public record ChatMessage : IExtensibleProperties
     public DateTime Timestamp { get; private set; } = DateTime.UtcNow;
     public IDictionary<string, object> ExtendedProperties { get; private set; } = new Dictionary<string, object>();
 
+    [JsonConstructor]
     private ChatMessage() { }
 
     private ChatMessage(Guid messageId, MessageRole role, string content, ContentType? contentType = null)

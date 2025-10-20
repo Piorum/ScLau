@@ -73,11 +73,7 @@ public class HarmonyFormatProvider(IToolFactory toolFactory) : IChatProvider
 
             await channel.Writer.WriteAsync(new() { IsDone = true });
             channel.Writer.Complete();
-
-            await Console.Out.WriteLineAsync(new HarmonyFormatHistoryBuilder(_toolFactory).WithHistory(history).WithOptions(options).ToString());
-
         });
-
 
         return channel;
     }

@@ -1,10 +1,10 @@
 services:
   chatfrontend:
+    depends_on:
+      - chatbackend
     build:
       context: ./chatfrontend
       dockerfile: Dockerfile
-    depends_on:
-      - chatbackend
     container_name: chatfrontend
     networks:
       - main
@@ -16,9 +16,12 @@ services:
       context: ./ChatBackend
       dockerfile: Dockerfile
     depends_on:
+      - db
+      #Remove this dependency if running ollama locally
       - ollama
     container_name: chatbackend
     environment:
+      - CONNECTION_STRING=Host=db;Database=chat_db;Username=user;Password=password
       - OLLAMA_ENDPOINT=http://ollama:11434/api/generate #Docker hosted endpoint
       #- OLLAMA_ENDPOINT=http://host.docker.internal:11434/api/generate #Locally hosted endpoint
 
@@ -27,13 +30,29 @@ services:
       #- TOP_K=30
     networks:
       - main
+      - database
     #Uncomment if running ollama locally
     #extra_hosts:
     #  - "host.docker.internal:host-gateway" #remap to host.docker.internal so Linux matches Windows/MacOS
 
+  db:
+    image: postgres@sha256:f898ac406e1a9e05115cc2efcb3c3abb3a92a4c0263f3b6f6aaae354cbb1953a
+    container_name: db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=chat_db
+    networks:
+      - database
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    #ports:
+    #  - "5432:5432"
+
   #Remove this service if running ollama locally
   ollama:
-    image: ollama/ollama@sha256:03eaa1581455ba16e7c954d799e4f44996b60ae668261acd00a0e80a241ed720
+    image: ollama/ollama@sha256:a61a8fd395dbb931cc8cb1b5da7a2510746575c87113fdc45b647ee59ef7f808
     container_name: ollama
     deploy:
       resources:
@@ -50,7 +69,10 @@ services:
 networks:
   main:
     driver: bridge
+  database:
+    driver: bridge
 
 volumes:
+  postgres_data:
   #Remove this volume if running ollama locally
   ollama_data:
