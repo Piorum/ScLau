@@ -7,7 +7,6 @@
 - C# Tools Framework
 
 ### WIP
-- Front End Chat Modification (Edit/Delete/Branch/Regenerate/Renaming)
 - Front End Parameter Tuning
 - Front End Tool Selection
 
