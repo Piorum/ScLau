@@ -27,7 +27,8 @@ type ReducerAction =
   | { type: 'set_active_chat_id', payload: string | null }
   | { type: 'set_chats', payload: ChatListItem[] }
   | { type: 'add_chat', payload: ChatListItem }
-  | { type: 'clear_chat_history', chatId: string };
+  | { type: 'clear_chat_history', chatId: string }
+  | { type: 'regenerate_message', payload: { messageId: string } };
 
 function messageReducer(state: ChatState, action: ReducerAction): ChatState {
   switch (action.type) {
@@ -137,6 +138,33 @@ function messageReducer(state: ChatState, action: ReducerAction): ChatState {
             ...state,
             chatMessages: { ...state.chatMessages, [action.chatId]: [] }
         };
+    case 'regenerate_message': {
+        if (!state.activeChatId) return state;
+        const { messageId } = action.payload;
+        const messages = state.chatMessages[state.activeChatId] || [];
+        const targetIndex = messages.findIndex(m => m.id === messageId);
+        if (targetIndex === -1) return state;
+
+        let lastUserIndex = -1;
+        for (let i = targetIndex; i >= 0; i--) {
+            if (messages[i].sender === 'user') {
+                lastUserIndex = i;
+                break;
+            }
+        }
+        if (lastUserIndex === -1) return state;
+
+        const newMessages = messages.slice(0, lastUserIndex + 1);
+        
+        return {
+            ...state,
+            chatMessages: {
+                ...state.chatMessages,
+                [state.activeChatId]: newMessages,
+            },
+            isAiResponding: { ...state.isAiResponding, [state.activeChatId]: true }
+        };
+    }
     default:
       return state;
   }
@@ -445,6 +473,85 @@ export const useChat = () => {
     }
   }, [state.activeChatId]);
 
+  const branch = useCallback(async (messageId: string) => {
+    if (!state.activeChatId) return;
+
+    try {
+      const response = await fetch(`/api/chats/${state.activeChatId}/messages/${messageId}/branch`, {
+        method: 'POST',
+      });
+
+      if (!response.ok || !response.body) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const newChatId = response.headers.get('X-New-Chat-Id');
+      if (!newChatId) {
+        throw new Error('No new chat ID returned from branch operation.');
+      }
+      
+      dispatch({ type: 'set_active_chat_id', payload: newChatId });
+      dispatch({ type: 'clear_chat_history', chatId: newChatId });
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const msg: BackendMessage = JSON.parse(line);
+            const sender: Sender = msg.Role === 0 ? 'user' : (msg.ContentType === 0 ? 'ai-reasoning' : 'ai-answer');
+            const message: Message = { id: msg.MessageId, text: msg.Content, sender: sender };
+            dispatch({ type: 'add_user_message', payload: message, chatId: newChatId });
+          } catch (e) {
+            console.error("Error parsing JSON line:", e, "Line was:", line);
+          }
+        }
+      }
+      
+      loadChats();
+
+    } catch (error) {
+      console.error("Failed to branch:", error);
+    }
+  }, [state.activeChatId, loadChats]);
+
+  const regenerate = useCallback(async (messageId: string) => {
+    if (!state.activeChatId) return;
+
+    dispatch({ type: 'regenerate_message', payload: { messageId } });
+
+    try {
+      const response = await fetch(`/api/chats/${state.activeChatId}/messages/${messageId}/regenerate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+
+      if (!response.ok || !response.body) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      for await (const event of streamChat(response.body.getReader())) {
+        dispatch({ type: 'stream_event', payload: event, chatId: state.activeChatId });
+      }
+      
+      loadChats();
+
+    } catch (error) {
+      console.error("Failed to regenerate:", error);
+      loadChatHistory(state.activeChatId);
+    }
+  }, [state.activeChatId, loadChats, loadChatHistory]);
+
   return {
     chats: state.chats,
     activeChatId: state.activeChatId,
@@ -453,6 +560,8 @@ export const useChat = () => {
     sendMessage, 
     deleteMessage, 
     editMessage, 
+    branch,
+    regenerate,
     loadChats, 
     loadChatHistory, 
     startNewChat 

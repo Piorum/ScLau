@@ -9,11 +9,13 @@ interface ChatHistoryProps {
   isAiResponding: boolean;
   deleteMessage: (messageId: string | string[]) => void;
   editMessage: (messageId: string, newContent: string | { partId: string, newText: string }[]) => void;
+  branch: (messageId: string) => void;
+  regenerate: (messageId: string) => void;
   onScroll: (event: React.UIEvent<HTMLDivElement>) => void;
 }
 
 const ChatHistory = React.forwardRef<HTMLDivElement, ChatHistoryProps>(
-  ({ messages, isAiResponding, deleteMessage, editMessage, onScroll }, ref) => {
+  ({ messages, isAiResponding, deleteMessage, editMessage, branch, regenerate, onScroll }, ref) => {
   
   const groupedMessages: Message[] = [];
   let currentReasoningGroup: Message[] = [];
@@ -54,7 +56,7 @@ const ChatHistory = React.forwardRef<HTMLDivElement, ChatHistoryProps>(
     >
       {isAiResponding && <LoadingIcon />}
       {groupedMessages.slice().reverse().map((message) => (
-        <ChatMessage key={message.id} message={message} deleteMessage={deleteMessage} editMessage={editMessage} />
+        <ChatMessage key={message.id} message={message} deleteMessage={deleteMessage} editMessage={editMessage} branch={branch} regenerate={regenerate} />
       ))}
     </div>
   );

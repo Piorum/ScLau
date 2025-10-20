@@ -20,6 +20,8 @@ function App() {
     sendMessage, 
     deleteMessage, 
     editMessage,
+    branch,
+    regenerate,
     chats,
     activeChatId: chatId,
     loadChats,
@@ -161,6 +163,8 @@ function App() {
               isAiResponding={isAiResponding} 
               deleteMessage={deleteMessage} 
               editMessage={editMessage} 
+              branch={branch}
+              regenerate={regenerate}
               onScroll={handleScroll}
             />
             <ScrollToBottomButton onClick={scrollToBottom} isVisible={showScrollToBottom} />

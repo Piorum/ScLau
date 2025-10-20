@@ -71,6 +71,7 @@ public class ChatCache(IDbContextFactory<ChatContext> contextFactory) : IChatCac
     {
         if (history.ChatId == Guid.Empty)
             history.ChatId = Guid.NewGuid();
+        history.LastMessageTime = DateTime.UtcNow;
 
         using (var context = await _contextFactory.CreateDbContextAsync())
         {

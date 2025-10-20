@@ -201,10 +201,10 @@ public class ChatsController(IChatCache chatCache, IChatProviderFactory chatProv
 
     }
 
-    // GET chats/{chatId}/messages/{messageId}/branch
+    // POST chats/{chatId}/messages/{messageId}/branch
     // Creates a new chat with a copy of the messages in the specified chat up to the specified message.
-    [HttpGet("{chatId:guid}/messages/{messageId:guid}/branch")]
-    public async Task<IActionResult> GetBranch(Guid chatId, Guid messageId)
+    [HttpPost("{chatId:guid}/messages/{messageId:guid}/branch")]
+    public async Task<IActionResult> PostBranch(Guid chatId, Guid messageId)
     {
         var baseHistory = await _chatCache.GetChatHistory(chatId);
         if (baseHistory is null)

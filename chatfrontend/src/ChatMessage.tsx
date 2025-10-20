@@ -15,9 +15,11 @@ interface ChatMessageProps {
   message: Message;
   deleteMessage: (messageId: string | string[]) => void;
   editMessage: (messageId: string, newContent: string | { partId: string, newText: string }[]) => void;
+  branch: (messageId: string) => void;
+  regenerate: (messageId: string) => void;
 }
 
-const ChatMessage: React.FC<ChatMessageProps> = ({ message, deleteMessage, editMessage }) => {
+const ChatMessage: React.FC<ChatMessageProps> = ({ message, deleteMessage, editMessage, branch, regenerate }) => {
   const [isEditing, setIsEditing] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -33,6 +35,14 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, deleteMessage, editM
 
   const handleDelete = () => {
     deleteMessage(message.id);
+  };
+
+  const handleBranch = () => {
+    branch(message.id);
+  };
+
+  const handleRegenerate = () => {
+    regenerate(message.id);
   };
 
   const handleSave = (newText: string) => {
@@ -75,6 +85,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, deleteMessage, editM
           message={message}
           onEdit={handleGroupEdit}
           onDelete={handleGroupDelete}
+          onBranch={handleBranch}
+          onRegenerate={handleRegenerate}
         />
       </div>
     );
@@ -83,7 +95,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, deleteMessage, editM
   return (
     <div className={`chat-message-wrapper ${message.sender}`}>
       <div className={`chat-message ${message.sender}`}>
-        {!message.isStreaming && <MessageActions onEdit={handleEdit} onDelete={handleDelete} />}
+        {!message.isStreaming && <MessageActions onEdit={handleEdit} onDelete={handleDelete} onBranch={handleBranch} onRegenerate={handleRegenerate} />}
         <div ref={contentRef}>
           <ReactMarkdown
             remarkPlugins={[remarkGfm, remarkMath]}

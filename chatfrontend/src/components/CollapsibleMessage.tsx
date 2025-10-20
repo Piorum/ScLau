@@ -16,6 +16,8 @@ interface CollapsibleMessageProps {
   message: Message;
   onEdit: (edits: { partId: string, newText: string }[]) => void;
   onDelete: () => void;
+  onBranch: () => void;
+  onRegenerate: () => void;
 }
 
 const PartRenderer: React.FC<{ text: string }> = ({ text }) => {
@@ -38,7 +40,7 @@ const PartRenderer: React.FC<{ text: string }> = ({ text }) => {
   );
 };
 
-const CollapsibleMessage: React.FC<CollapsibleMessageProps> = ({ message, onEdit, onDelete }) => {
+const CollapsibleMessage: React.FC<CollapsibleMessageProps> = ({ message, onEdit, onDelete, onBranch, onRegenerate }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
@@ -92,7 +94,7 @@ const CollapsibleMessage: React.FC<CollapsibleMessageProps> = ({ message, onEdit
           </div>
         ))}
       </div>
-      {isExpanded && !message.isStreaming && <MessageActions onEdit={handleEdit} onDelete={handleDelete} />}
+      {isExpanded && !message.isStreaming && <MessageActions onEdit={handleEdit} onDelete={handleDelete} onBranch={onBranch} onRegenerate={onRegenerate} />}
     </div>
   );
 };export default CollapsibleMessage;
