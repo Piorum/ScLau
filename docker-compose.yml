@@ -20,6 +20,7 @@ services:
       #Remove this dependency if running ollama locally
       - ollama
     container_name: chatbackend
+    restart: unless-stopped
     environment:
       - CONNECTION_STRING=Host=db;Database=chat_db;Username=user;Password=password
       - OLLAMA_ENDPOINT=http://ollama:11434/api/generate #Docker hosted endpoint

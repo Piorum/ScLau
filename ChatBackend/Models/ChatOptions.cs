@@ -9,5 +9,5 @@ public class ChatOptions : IExtensibleProperties
     public string SystemMessage { get; set; } = "";
     public OllamaOptions? ModelOptions { get; set; } = null;
     public List<string>? EnabledTools { get; set; } = null;
-    public IDictionary<string, object> ExtendedProperties { get; private set; } = new Dictionary<string, object>();
+    public IDictionary<string, object> ExtendedProperties { get; init; } = new Dictionary<string, object>();
 }

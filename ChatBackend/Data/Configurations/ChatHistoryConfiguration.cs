@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using ChatBackend.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace ChatBackend.Data.Configurations;
@@ -13,7 +14,7 @@ public class ChatHistoryConfiguration : IEntityTypeConfiguration<ChatHistory>
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         Converters =
         {
-            new JsonStringEnumConverter() // <-- important for enums
+            new JsonStringEnumConverter()
         }
     };
 
@@ -26,7 +27,14 @@ public class ChatHistoryConfiguration : IEntityTypeConfiguration<ChatHistory>
                 v => JsonSerializer.Serialize(v, _jsonOptions),
                 v => JsonSerializer.Deserialize<List<ChatMessage>>(v, _jsonOptions)!
             )
-            .HasColumnType("jsonb");
+            .HasColumnType("jsonb")        
+            .Metadata.SetValueComparer(
+            new ValueComparer<List<ChatMessage>>(
+                (c1, c2) => c1!.SequenceEqual(c2!),
+                c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                c => c.ToList()
+            )
+        );;
 
         builder.Property(ch => ch.LastChatOptions)
             .HasConversion(
