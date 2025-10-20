@@ -165,8 +165,8 @@ public class ChatsController(IChatCache chatCache, IChatProviderFactory chatProv
 
     // POST chats/{chatId}/messages/{messageId}/regenerate
     // Deletes all messages past the last user message before the specified message and re-prompts AI, streams AI's response
-    [HttpPost("{chatId:guid}/messages{messageId:guid}/regenerate")]
-    public async Task<IActionResult> PostRegenerateMessage(Guid chatId, Guid messageId, [FromBody] PostMessageRequest request)
+    [HttpPost("{chatId:guid}/messages/{messageId:guid}/regenerate")]
+    public async Task<IActionResult> PostRegenerate(Guid chatId, Guid messageId, [FromBody] PostMessageRequest request)
     {
         var history = await _chatCache.GetChatHistory(chatId);
         if (history is null)

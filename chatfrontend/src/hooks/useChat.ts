@@ -226,9 +226,9 @@ export const useChat = () => {
     }
   }, []);
 
-  const loadChatHistory = useCallback(async (chatId: string) => {
+  const loadChatHistory = useCallback(async (chatId: string, force = false) => {
     dispatch({ type: 'set_active_chat_id', payload: chatId });
-    if (state.chatMessages[chatId]) {
+    if (state.chatMessages[chatId] && !force) {
         return; // Already loaded
     }
 
@@ -430,7 +430,7 @@ export const useChat = () => {
       ));
       if (results.some(res => !res.ok)) {
         console.error('One or more messages failed to delete.');
-        // Simple error handling. A real app might have a more robust retry or rollback mechanism.
+        // Simple error handling. A real app might have a more robust retry or rollback mechanism. 
       }
     } catch (error) {
       console.error("Failed to delete message(s):", error);
@@ -541,14 +541,14 @@ export const useChat = () => {
       }
 
       for await (const event of streamChat(response.body.getReader())) {
-        dispatch({ type: 'stream_event', payload: event, chatId: state.activeChatId });
+        dispatch({ type: 'stream_event', payload: event, chatId: state.activeChatId! });
       }
       
       loadChats();
 
     } catch (error) {
       console.error("Failed to regenerate:", error);
-      loadChatHistory(state.activeChatId);
+      loadChatHistory(state.activeChatId, true);
     }
   }, [state.activeChatId, loadChats, loadChatHistory]);
 
