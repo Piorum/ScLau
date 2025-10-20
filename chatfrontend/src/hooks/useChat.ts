@@ -388,25 +388,62 @@ export const useChat = () => {
 
     }, [state.activeChatId, loadChats]);
 
-  const deleteMessage = useCallback((messageId: string | string[]) => {
-    if (Array.isArray(messageId)) {
-      console.log('Simulating backend delete for messageIds:', messageId);
-      dispatch({ type: 'delete_messages', payload: messageId });
-    } else {
-      console.log('Simulating backend delete for messageId:', messageId);
-      dispatch({ type: 'delete_message', payload: messageId });
-    }
-  }, []);
+  const deleteMessage = useCallback(async (messageId: string | string[]) => {
+    if (!state.activeChatId) return;
 
-  const editMessage = useCallback((messageId: string, newContent: string | { partId: string, newText: string }[]) => {
-    if (typeof newContent === 'string') {
-      console.log('Simulating backend edit for messageId:', messageId);
-      dispatch({ type: 'edit_message', payload: { messageId, newText: newContent } });
-    } else {
-      console.log('Simulating backend edit for reasoning parts of group:', messageId);
-      dispatch({ type: 'edit_reasoning_parts', payload: { edits: newContent } });
+    const idsToDelete = Array.isArray(messageId) ? messageId : [messageId];
+    dispatch({ type: 'delete_messages', payload: idsToDelete });
+
+    try {
+      const results = await Promise.all(idsToDelete.map(id =>
+        fetch(`/api/chats/${state.activeChatId}/messages/${id}`, {
+          method: 'DELETE',
+        })
+      ));
+      if (results.some(res => !res.ok)) {
+        console.error('One or more messages failed to delete.');
+        // Simple error handling. A real app might have a more robust retry or rollback mechanism.
+      }
+    } catch (error) {
+      console.error("Failed to delete message(s):", error);
     }
-  }, []);
+  }, [state.activeChatId]);
+
+  const editMessage = useCallback(async (messageId: string, newContent: string | { partId: string, newText: string }[]) => {
+    if (!state.activeChatId) return;
+
+    if (typeof newContent === 'string') {
+        dispatch({ type: 'edit_message', payload: { messageId, newText: newContent } });
+        try {
+            const res = await fetch(`/api/chats/${state.activeChatId}/messages/${messageId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ Content: newContent }),
+            });
+            if (!res.ok) {
+                console.error(`Failed to edit message ${messageId}`);
+            }
+        } catch (error) {
+            console.error("Failed to edit message:", error);
+        }
+    } else {
+        dispatch({ type: 'edit_reasoning_parts', payload: { edits: newContent } });
+        try {
+            const results = await Promise.all(newContent.map(part =>
+                fetch(`/api/chats/${state.activeChatId}/messages/${part.partId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ Content: part.newText }),
+                })
+            ));
+            if (results.some(res => !res.ok)) {
+                console.error('One or more message parts failed to edit.');
+            }
+        } catch (error) {
+            console.error("Failed to edit message parts:", error);
+        }
+    }
+  }, [state.activeChatId]);
 
   return {
     chats: state.chats,

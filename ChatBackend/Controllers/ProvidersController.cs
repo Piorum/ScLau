@@ -21,7 +21,7 @@ public class ProviderssController(IChatProviderFactory chatProviderFactory, IEnu
     // GET /api/providers/{providerName}/options
     // Returns a list of provider specific options, their descriptions, and valid values if applicable
     [HttpGet("{providerName}/options")]
-    public IActionResult GetChat(string providerName)
+    public IActionResult GetOptions(string providerName)
     {
         try
         {
