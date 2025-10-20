@@ -27,6 +27,8 @@ type ReducerAction =
   | { type: 'set_active_chat_id', payload: string | null }
   | { type: 'set_chats', payload: ChatListItem[] }
   | { type: 'add_chat', payload: ChatListItem }
+  | { type: 'update_chat_title', payload: { chatId: string, newTitle: string } }
+  | { type: 'delete_chat', payload: { chatId: string } }
   | { type: 'clear_chat_history', chatId: string }
   | { type: 'regenerate_message', payload: { messageId: string } };
 
@@ -34,6 +36,23 @@ function messageReducer(state: ChatState, action: ReducerAction): ChatState {
   switch (action.type) {
     case 'add_chat':
       return { ...state, chats: [action.payload, ...state.chats] };
+    case 'update_chat_title':
+        return {
+            ...state,
+            chats: state.chats.map(c => c.chatId === action.payload.chatId ? { ...c, title: action.payload.newTitle } : c)
+        };
+    case 'delete_chat': {
+        const { chatId } = action.payload;
+        const newChats = state.chats.filter(c => c.chatId !== chatId);
+        const newChatMessages = { ...state.chatMessages };
+        delete newChatMessages[chatId];
+        return {
+            ...state,
+            chats: newChats,
+            chatMessages: newChatMessages,
+            activeChatId: state.activeChatId === chatId ? null : state.activeChatId
+        };
+    }
     case 'delete_message':
       // This logic would need to be updated to find which chat the message belongs to if deleting from a non-active chat is desired.
       // For now, it assumes deletion only happens on the active chat.
@@ -473,6 +492,38 @@ export const useChat = () => {
     }
   }, [state.activeChatId]);
 
+  const updateChatTitle = useCallback(async (chatId: string, newTitle: string) => {
+    dispatch({ type: 'update_chat_title', payload: { chatId, newTitle } });
+    try {
+        const response = await fetch(`/api/chats/${chatId}/title`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: newTitle }),
+        });
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+    } catch (error) {
+        console.error("Failed to update chat title:", error);
+        // Optionally, revert the title change in the UI
+    }
+  }, []);
+
+  const deleteChat = useCallback(async (chatId: string) => {
+    dispatch({ type: 'delete_chat', payload: { chatId } });
+    try {
+        const response = await fetch(`/api/chats/${chatId}`, {
+            method: 'DELETE',
+        });
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+    } catch (error) {
+        console.error("Failed to delete chat:", error);
+        // Optionally, revert the deletion in the UI
+    }
+  }, []);
+
   const branch = useCallback(async (messageId: string) => {
     if (!state.activeChatId) return;
 
@@ -564,6 +615,8 @@ export const useChat = () => {
     regenerate,
     loadChats, 
     loadChatHistory, 
-    startNewChat 
+    startNewChat, 
+    updateChatTitle,
+    deleteChat
   };
 };

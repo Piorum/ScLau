@@ -26,7 +26,9 @@ function App() {
     activeChatId: chatId,
     loadChats,
     loadChatHistory,
-    startNewChat
+    startNewChat,
+    updateChatTitle,
+    deleteChat
   } = useChat();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -151,6 +153,8 @@ function App() {
         onChatSelect={handleSelectChat}
         onNewChat={handleNewChat}
         currentChatId={chatId}
+        updateChatTitle={updateChatTitle}
+        deleteChat={deleteChat}
       />
       <SettingsMenu isOpen={isSettingsOpen} onClose={closeSettings} />
       <div className="main-content-wrapper">
