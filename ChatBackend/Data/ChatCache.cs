@@ -1,14 +1,22 @@
-using System.Collections.Concurrent;
 using ChatBackend.Interfaces;
 using ChatBackend.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace ChatBackend.Data;
 
-public class ChatCache(IDbContextFactory<ChatContext> contextFactory) : IChatCache
+public class ChatCache(IDbContextFactory<ChatContext> contextFactory) : IChatCache, IDisposable
 {
-    private readonly ConcurrentDictionary<Guid, ChatHistory> _chats = [];
     private readonly IDbContextFactory<ChatContext> _contextFactory = contextFactory;
+    private readonly MemoryCache _cache = new(new MemoryCacheOptions
+    {
+        SizeLimit = 1024
+    });
+
+    private readonly MemoryCacheEntryOptions defaultCacheOptions = new() {
+        SlidingExpiration = TimeSpan.FromMinutes(5),
+        Size = 1
+    };
 
     public IEnumerable<object> ListChats()
     {
@@ -24,29 +32,29 @@ public class ChatCache(IDbContextFactory<ChatContext> contextFactory) : IChatCac
             }).ToList();
     }
 
-    public async Task<ChatHistory?> GetChatHistory(Guid ChatId)
+    public async Task<ChatHistory?> GetChatHistory(Guid chatId)
     {
-        if (_chats.TryGetValue(ChatId, out var cachedHistory))
+        if (_cache.TryGetValue(chatId, out ChatHistory? cachedHistory))
             return cachedHistory;
 
         using var context = await _contextFactory.CreateDbContextAsync();
         var history = await context.ChatHistories
             .AsNoTracking()
-            .FirstOrDefaultAsync(ch => ch.ChatId == ChatId);
+            .FirstOrDefaultAsync(ch => ch.ChatId == chatId);
 
         if (history is not null)
-            _chats.TryAdd(ChatId, history);
+            _cache.Set(chatId, history, defaultCacheOptions);
 
         return history;
     }
 
-    public async Task<ChatHistory> GetOrCreateChatHistory(Guid ChatId)
+    public async Task<ChatHistory> GetOrCreateChatHistory(Guid chatId)
     {
-        var history = await GetChatHistory(ChatId);
+        var history = await GetChatHistory(chatId);
         if (history is not null)
             return history;
 
-        var newHistory = new ChatHistory { ChatId = ChatId };
+        var newHistory = new ChatHistory { ChatId = chatId };
 
         using (var context = await _contextFactory.CreateDbContextAsync())
         {
@@ -54,7 +62,7 @@ public class ChatCache(IDbContextFactory<ChatContext> contextFactory) : IChatCac
             await context.SaveChangesAsync();
         }
 
-        _chats.TryAdd(ChatId, newHistory);
+        _cache.Set(chatId, newHistory, defaultCacheOptions);
 
         return newHistory;
     }
@@ -70,17 +78,17 @@ public class ChatCache(IDbContextFactory<ChatContext> contextFactory) : IChatCac
             await context.SaveChangesAsync();
         }
 
-        _chats.TryAdd(history.ChatId, history);
+        _cache.Set(history.ChatId, history, defaultCacheOptions);
 
         return history.ChatId;
     }
 
-    public async Task<bool> RemoveChatHistory(Guid ChatId)
+    public async Task<bool> RemoveChatHistory(Guid chatId)
     {
-        _chats.TryRemove(ChatId, out var _);
+        _cache.Remove(chatId);
 
         using var context = await _contextFactory.CreateDbContextAsync();
-        var historyToRemove = await context.ChatHistories.FindAsync(ChatId);
+        var historyToRemove = await context.ChatHistories.FindAsync(chatId);
         if (historyToRemove is not null)
         {
             context.ChatHistories.Remove(historyToRemove);
@@ -99,7 +107,17 @@ public class ChatCache(IDbContextFactory<ChatContext> contextFactory) : IChatCac
         context.ChatHistories.Update(history);
 
         var changedCount = await context.SaveChangesAsync();
-        return changedCount > 0;
+        var changed = changedCount > 0;
+
+        if (changed)
+            _cache.Set(history.ChatId, history, defaultCacheOptions);
+
+        return changed;
     }
 
+    public void Dispose()
+    {
+        _cache.Dispose();
+        GC.SuppressFinalize(this);
+    }
 }
