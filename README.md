@@ -1,5 +1,4 @@
-## Lightweight containerized web server for talking with Gpt-Oss-20B locally <br/>
-
+## Lightweight web interface for gpt-oss:20b<br/>
 
 ### Features
 - Markdown/LaTeX/Code Rendering
@@ -7,13 +6,12 @@
 - All Ollama/GptOss Options
 - C# Tools Framework
 
-### Short-Term
+### WIP
 - Front End Chat Modification (Edit/Delete/Branch/Regenerate/Renaming)
 - Front End Parameter Tuning
 - Front End Tool Selection
 
-ASP.NET / React / Ollama
-
+ASP.NET / React / Ollama<br/>
 Containerized with Docker
 
 <sub>*Scriptum colloquium, libere ad usum.*</sub>
