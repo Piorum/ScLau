@@ -10,15 +10,15 @@ namespace ChatBackend;
 
 public static class LLMProvider
 {
+    private static readonly HttpClient _client = new();
     private static readonly JsonSerializerOptions defaultRequestOptions = new() { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull };
 
-    static public ChannelReader<string> StreamCompletionAsync(string prompt, string modelName, ChatOptions options, Channel<string>? existingChannel = null)
+    static public ChannelReader<string> StreamCompletionAsync(string prompt, string modelName, ChatOptions options, Channel<string>? existingChannel = null, CancellationToken cancellationToken = default)
     {
         Channel<string> channel = existingChannel ?? Channel.CreateUnbounded<string>();
 
         _ = Task.Run(async () =>
         {
-            using var client = new HttpClient();
             string url = Environment.GetEnvironmentVariable("OLLAMA_ENDPOINT") ?? throw new("OLLAMA_ENDPOINT was null");
 
             //Other request values will be initialized by environment variables in the constructor
@@ -36,14 +36,16 @@ public static class LLMProvider
 
             try
             {
-                using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+                using var response = await _client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
                 response.EnsureSuccessStatusCode();
 
-                using var stream = await response.Content.ReadAsStreamAsync();
+                using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
                 using var reader = new StreamReader(stream);
 
                 while (!reader.EndOfStream)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
+
                     var line = await reader.ReadLineAsync();
                     if (string.IsNullOrWhiteSpace(line)) continue;
 
@@ -51,9 +53,13 @@ public static class LLMProvider
 
                     if (responseObject is not null && responseObject.Response is not null)
                     {
-                        await channel.Writer.WriteAsync(responseObject.Response);
+                        await channel.Writer.WriteAsync(responseObject.Response, cancellationToken);
                     }
                 }
+            }
+            catch (OperationCanceledException)
+            {
+                //Expected just continue to finally block
             }
             catch (HttpRequestException ex)
             {
@@ -65,7 +71,7 @@ public static class LLMProvider
                 channel.Writer.Complete();
             }
 
-        });
+        }, CancellationToken.None);
 
         return channel.Reader;
     }

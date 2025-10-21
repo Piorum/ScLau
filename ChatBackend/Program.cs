@@ -7,6 +7,8 @@ using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddHttpClient();
+
 builder.Services.AddControllers();
 
 var connectionString = Environment.GetEnvironmentVariable("CONNECTION_STRING") ?? throw new("CONNECTION_STRING is null");

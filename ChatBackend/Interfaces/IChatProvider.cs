@@ -1,4 +1,3 @@
-using System.Threading.Channels;
 using ChatBackend.Models;
 
 namespace ChatBackend.Interfaces;
@@ -8,9 +7,11 @@ public interface IChatProvider
     string Name { get; }
     IEnumerable<ProviderOptionDescriptor> ExtendedOptions { get; }
 
-    ChannelReader<ModelResponse> ContinueChatAsync(
+    //This shouldn't throw, handle cancellation and complete gracefully.
+    IAsyncEnumerable<ModelResponse> ContinueChatAsync(
         ChatHistory history,
-        ChatOptions options
+        ChatOptions options,
+        CancellationToken cancellationToken = default
     );
 
 }

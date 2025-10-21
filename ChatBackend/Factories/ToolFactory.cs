@@ -90,8 +90,7 @@ public class ToolFactory : IToolFactory
         }
         catch (Exception ex)
         {
-            return ToolResult.Failure(ToolResultType.MalformedArguments,
-                $"Failed to deserialize parameters: {ex.Message}");
+            return ToolResult.Failure(ToolResultType.MalformedArguments, $"Failed to deserialize parameters: {ex.Message}");
         }
         if (paramObj is null)
             return ToolResult.Failure(ToolResultType.MalformedArguments, "Param object resolved as null.");
@@ -107,8 +106,7 @@ public class ToolFactory : IToolFactory
         }
         catch (Exception ex)
         {
-            return ToolResult.Failure(ToolResultType.ExecutionError,
-                $"Tool execution threw an exception: {ex.Message}");
+            return ToolResult.Failure(ToolResultType.ExecutionError, $"Tool execution threw an exception: {ex.Message}");
         }
     }
 

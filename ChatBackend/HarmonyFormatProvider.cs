@@ -20,7 +20,7 @@ public class HarmonyFormatProvider(IToolFactory toolFactory) : IChatProvider
         ExtendedOptionDescriptors.ReasoningLevel
     ];
 
-    public ChannelReader<ModelResponse> ContinueChatAsync(ChatHistory history, ChatOptions options)
+    public IAsyncEnumerable<ModelResponse> ContinueChatAsync(ChatHistory history, ChatOptions options, CancellationToken cancellationToken = default)
     {
         Channel<ModelResponse> channel = Channel.CreateUnbounded<ModelResponse>();
 
@@ -34,7 +34,7 @@ public class HarmonyFormatProvider(IToolFactory toolFactory) : IChatProvider
 
                 var model = ExtendedOptionDescriptors.Model.GetValue<string>(options);
 
-                var modelOutput = LLMProvider.StreamCompletionAsync($"{prompt}{HarmonyTokens.Start}{HarmonyRoles.Assistant}", model, options);
+                var modelOutput = LLMProvider.StreamCompletionAsync($"{prompt}{HarmonyTokens.Start}{HarmonyRoles.Assistant}", model, options, cancellationToken: cancellationToken);
 
                 ChatState state = new(_toolFactory, promptHasAssistantTrail: true)
                 {
@@ -44,38 +44,51 @@ public class HarmonyFormatProvider(IToolFactory toolFactory) : IChatProvider
                 };
                 StringBuilder messageBuilder = new();
 
-                await foreach (var token in modelOutput.ReadAllAsync())
+                try
                 {
-                    if (token is null) continue;
+                    await foreach (var token in modelOutput.ReadAllAsync(cancellationToken: cancellationToken))
+                    {
+                        if (token is null) continue;
 
-                    if (state.TokenHandlers.TryGetValue(token, out var handler))
-                    {
-                        await handler(state, messageBuilder);
-                    }
-                    else
-                    {
-                        messageBuilder.Append(token);
-                        if (state.IncomingMessage)
+                        if (state.TokenHandlers.TryGetValue(token, out var handler))
                         {
-                            await channel.Writer.WriteAsync(new()
+                            await handler(state, messageBuilder);
+                        }
+                        else
+                        {
+                            messageBuilder.Append(token);
+                            if (state.IncomingMessage)
                             {
-                                MessageId = state.CurrentMessageId,
-                                ContentType = state.ContentType,
-                                ContentChunk = token,
-                                IsDone = false
-                            });
+                                await channel.Writer.WriteAsync(new()
+                                {
+                                    MessageId = state.CurrentMessageId,
+                                    ContentType = state.ContentType,
+                                    ContentChunk = token,
+                                    IsDone = false
+                                });
+                            }
                         }
                     }
                 }
+                catch (OperationCanceledException)
+                {
+                    isConversationDone = true;
+                }
+                finally
+                {
+                    var turnCompletedSuccesfully = await state.ProcessTurnCompletion(messageBuilder);
 
-                isConversationDone = await state.ProcessTurnCompletion(messageBuilder);
+                    //Cancelled or turn is actually over
+                    isConversationDone = isConversationDone || turnCompletedSuccesfully;
+                }
+
             }
 
             await channel.Writer.WriteAsync(new() { IsDone = true });
             channel.Writer.Complete();
-        });
+        }, CancellationToken.None);
 
-        return channel;
+        return channel.Reader.ReadAllAsync(CancellationToken.None);
     }
 
     private class ChatState
@@ -149,6 +162,10 @@ public class HarmonyFormatProvider(IToolFactory toolFactory) : IChatProvider
         /// <returns>Returns 'true' if assistant has yielded</returns>
         public async Task<bool> ProcessTurnCompletion(StringBuilder sb)
         {
+            //Partial content from an aborted request that doesn't contain message content we can just end.
+            if(!IncomingMessage)
+                return false;
+
             string[] nonToolCallChannelNames = [HarmonyChannels.Commentary, HarmonyChannels.Analysis, HarmonyChannels.Final];
             if (nonToolCallChannelNames.Contains(CurrentChannel))
             {
@@ -174,9 +191,16 @@ public class HarmonyFormatProvider(IToolFactory toolFactory) : IChatProvider
                 History.Messages.Add(toolCall);
 
                 //Handle tool call
-                using JsonDocument document = JsonDocument.Parse(callArguments);
-                
-                var callResult = await ToolFactory.ExecuteTool(toolName, document.RootElement);
+                ToolResult callResult;
+                try
+                {
+                    using JsonDocument document = JsonDocument.Parse(callArguments);
+                    callResult = await ToolFactory.ExecuteTool(toolName, document.RootElement);
+                }
+                catch(JsonException)
+                {
+                    callResult = ToolResult.Failure(ToolResultType.MalformedArguments, "Arguments could not be parsed into JSON.");
+                }
 
                 Guid messageId = Guid.NewGuid();
                 string content;
@@ -190,9 +214,9 @@ public class HarmonyFormatProvider(IToolFactory toolFactory) : IChatProvider
                 {
                     content = callResult.ResultType switch
                     {
-                        ToolResultType.MalformedToolName => $"Tool name \"{toolName}\" was incorrect, not a tool, or couldn't be parsed.",
-                        ToolResultType.MalformedArguments => $"Arguments for \"{toolName}\" were incorrect or couldn't be parsed.",
-                        ToolResultType.ExecutionError => "An error occured during execution of the tool.",
+                        ToolResultType.MalformedToolName => callResult.Error ?? $"Tool name \"{toolName}\" was incorrect, not a tool, or couldn't be parsed.",
+                        ToolResultType.MalformedArguments => callResult.Error ?? $"Arguments for \"{toolName}\" were incorrect or couldn't be parsed.",
+                        ToolResultType.ExecutionError => callResult.Error ?? "An error occured during execution of the tool.",
                         _ => "Unhandled tool result error type.",
                     };
 

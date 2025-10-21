@@ -75,7 +75,7 @@ public class ChatsController(IChatCache chatCache, IChatProviderFactory chatProv
             prompt.Messages.Add(ChatMessage.CreateSystemMessage(Guid.NewGuid(), sb.ToString()));
 
             sb.Clear();
-            await foreach (var response in provider.ContinueChatAsync(prompt, new() { SystemMessage = "Summarize the following chat excerpt into a 3-5 word title." }).ReadAllAsync())
+            await foreach (var response in provider.ContinueChatAsync(prompt, new() { SystemMessage = "Summarize the following chat excerpt into a 3-5 word title." }))
             {
                 if (response.ContentType == ContentType.Answer)
                     sb.Append(response.ContentChunk);
@@ -257,7 +257,7 @@ public class ChatsController(IChatCache chatCache, IChatProviderFactory chatProv
         LatexStreamRewriter lsr = new();
         Response.ContentType = "application/x-ndjson";
 
-        await foreach (var response in _chatProviderFactory.GetProvider(options.ChatProvider).ContinueChatAsync(history, options).ReadAllAsync())
+        await foreach (var response in _chatProviderFactory.GetProvider(options.ChatProvider).ContinueChatAsync(history, options, cancellationToken: HttpContext.RequestAborted))
         {
             response.ContentChunk = lsr.ProcessChunk(response.ContentChunk);
             var jsonChunk = JsonSerializer.Serialize(response);
