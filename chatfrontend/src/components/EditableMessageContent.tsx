@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
+import CheckmarkIcon from '../icons/CheckmarkIcon';
+import XIcon from '../icons/XIcon';
 import './EditableMessageContent.css';
 
 interface EditableMessageContentProps {
@@ -47,8 +49,8 @@ const EditableMessageContent: React.FC<EditableMessageContentProps> = ({ initial
         className="edit-textarea"
       />
       <div className="edit-actions">
-        <button onClick={() => onSave(editedText)}>Save</button>
-        <button onClick={onCancel}>Cancel</button>
+        <button onClick={() => onSave(editedText)}><CheckmarkIcon /></button>
+        <button onClick={onCancel}><XIcon /></button>
       </div>
     </div>
   );

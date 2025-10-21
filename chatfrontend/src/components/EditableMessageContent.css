@@ -28,27 +28,17 @@
 }
 
 .editable-message-content .edit-actions button {
-  background-color: var(--color-component-bg); /* Monochrome background */
-  color: var(--color-text-highlight); /* Monochrome text */
-  border: 1px solid var(--color-border); /* Added border */
-  padding: 6px 12px;
-  border-radius: 5px;
+  background: none;
+  border: none;
   cursor: pointer;
-  transition: color 0.3s ease, border-color 0.3s ease, background-color 0.3s ease;
+  padding: 2px;
+  color: var(--color-text-main);
 }
 
-.editable-message-content .edit-actions button:hover {
+.editable-message-content .edit-actions button:first-child:hover {
   color: var(--color-text-highlight);
-  border-color: var(--color-text-highlight);
-}
-
-.editable-message-content .edit-actions button:last-child {
-  background-color: var(--color-component-bg); /* Monochrome background */
-  color: var(--color-text-main); /* Subdued text color */
-  border: 1px solid var(--color-border); /* Added border */
 }
 
 .editable-message-content .edit-actions button:last-child:hover {
-  border-color: var(--color-destructive);
   color: var(--color-destructive);
 }

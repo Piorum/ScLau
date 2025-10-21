@@ -42,8 +42,7 @@
 .chat-message.editing {
   max-width: 80%;
   width: 100%;
-  padding-top: 20px;
-  padding-bottom: 20px;
+  padding: 15px 15px 5px;
 }
 
 .edit-textarea {

@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MessagePart } from '../types';
+import CheckmarkIcon from '../icons/CheckmarkIcon';
+import XIcon from '../icons/XIcon';
 import './EditableMessageContent.css';
 
 interface MultiPartEditableMessageContentProps {
@@ -49,8 +51,8 @@ const MultiPartEditableMessageContent: React.FC<MultiPartEditableMessageContentP
         </div>
       ))}
       <div className="edit-actions">
-        <button onClick={handleSave}>Save</button>
-        <button onClick={onCancel}>Cancel</button>
+        <button onClick={handleSave}><CheckmarkIcon /></button>
+        <button onClick={onCancel}><XIcon /></button>
       </div>
     </div>
   );
