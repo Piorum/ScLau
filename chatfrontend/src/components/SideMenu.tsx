@@ -23,6 +23,13 @@ interface SideMenuProps {
 const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose, onSettingsClick, chats, onChatSelect, onNewChat, currentChatId, updateChatTitle, deleteChat }) => {
   const [editingChatId, setEditingChatId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
+  const editInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editingChatId && editInputRef.current) {
+      editInputRef.current.focus();
+    }
+  }, [editingChatId]);
 
   const handleEditClick = (chatId: string, currentTitle: string) => {
     setEditingChatId(chatId);
@@ -62,6 +69,7 @@ const SideMenu: React.FC<SideMenuProps> = ({ isOpen, onClose, onSettingsClick, c
                 {editingChatId === chat.chatId ? (
                   <div className="edit-chat-title-container">
                     <input 
+                      ref={editInputRef}
                       type="text" 
                       value={editingTitle} 
                       onChange={(e) => setEditingTitle(e.target.value)} 

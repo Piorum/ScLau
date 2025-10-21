@@ -35,10 +35,6 @@
   color: var(--color-text-main);
 }
 
-.editable-message-content .edit-actions button:first-child:hover {
+.editable-message-content .edit-actions button:hover {
   color: var(--color-text-highlight);
-}
-
-.editable-message-content .edit-actions button:last-child:hover {
-  color: var(--color-destructive);
 }

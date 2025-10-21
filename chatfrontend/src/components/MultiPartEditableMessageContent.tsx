@@ -15,6 +15,12 @@ const MultiPartEditableMessageContent: React.FC<MultiPartEditableMessageContentP
   const textareaRefs = useRef<(HTMLTextAreaElement | null)[]>([]);
 
   useEffect(() => {
+    if (parts.length === 1 && textareaRefs.current[0]) {
+      textareaRefs.current[0].focus();
+    }
+  }, [parts.length]);
+
+  useEffect(() => {
     textareaRefs.current = textareaRefs.current.slice(0, parts.length);
   }, [parts]);
 
