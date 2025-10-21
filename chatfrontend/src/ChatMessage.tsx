@@ -21,13 +21,39 @@ interface ChatMessageProps {
 
 const ChatMessage: React.FC<ChatMessageProps> = ({ message, deleteMessage, editMessage, branch, regenerate }) => {
   const [isEditing, setIsEditing] = useState(false);
+  const [isSelected, setIsSelected] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
+  const messageRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 768px)");
+    setIsMobile(mediaQuery.matches);
+
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mediaQuery.addEventListener('change', handler);
+
+    return () => mediaQuery.removeEventListener('change', handler);
+  }, []);
 
   useEffect(() => {
     if (contentRef.current) {
       twemoji.parse(contentRef.current, { folder: 'svg', ext: '.svg' });
     }
   }, [message.text, isEditing, message.isStreaming]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (isMobile && messageRef.current && !messageRef.current.contains(event.target as Node)) {
+        setIsSelected(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isMobile, messageRef]);
 
   const handleEdit = () => {
     setIsEditing(true);
@@ -52,6 +78,12 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, deleteMessage, editM
 
   const handleCancel = () => {
     setIsEditing(false);
+  };
+
+  const handleWrapperClick = () => {
+    if (isMobile) {
+      setIsSelected(!isSelected);
+    }
   };
 
   if (isEditing) {
@@ -93,8 +125,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, deleteMessage, editM
   }
 
   return (
-    <div className={`chat-message-wrapper ${message.sender}`}>
-      <div className={`chat-message ${message.sender}`}>
+    <div className={`chat-message-wrapper ${message.sender}`} onClick={handleWrapperClick} ref={messageRef}>
+      <div className={`chat-message ${message.sender} ${isMobile && isSelected ? 'selected' : ''}`}>
         {!message.isStreaming && <MessageActions onEdit={handleEdit} onDelete={handleDelete} onBranch={handleBranch} onRegenerate={handleRegenerate} />}
         <div ref={contentRef}>
           <ReactMarkdown

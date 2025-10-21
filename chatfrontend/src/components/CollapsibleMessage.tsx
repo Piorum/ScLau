@@ -43,10 +43,43 @@ const PartRenderer: React.FC<{ text: string }> = ({ text }) => {
 const CollapsibleMessage: React.FC<CollapsibleMessageProps> = ({ message, onEdit, onDelete, onBranch, onRegenerate }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [isSelected, setIsSelected] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const messageRef = useRef<HTMLDivElement>(null);
 
-  const toggleExpand = () => {
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 768px)");
+    setIsMobile(mediaQuery.matches);
+
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mediaQuery.addEventListener('change', handler);
+
+    return () => mediaQuery.removeEventListener('change', handler);
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (isMobile && messageRef.current && !messageRef.current.contains(event.target as Node)) {
+        setIsSelected(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isMobile, messageRef]);
+
+  const toggleExpand = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (!isEditing) {
       setIsExpanded(!isExpanded);
+    }
+  };
+
+  const handleContainerClick = () => {
+    if (isMobile) {
+      setIsSelected(!isSelected);
     }
   };
 
@@ -81,7 +114,7 @@ const CollapsibleMessage: React.FC<CollapsibleMessageProps> = ({ message, onEdit
   }
 
   return (
-    <div className={`collapsible-message ${isExpanded ? 'expanded' : ''}`}>
+    <div className={`collapsible-message ${isExpanded ? 'expanded' : ''} ${isMobile && isSelected ? 'selected' : ''}`} ref={messageRef} onClick={handleContainerClick}>
       <div className="collapsible-header" onClick={toggleExpand}>
         <div className="arrow"></div>
         <span>{message.sender === 'ai-reasoning' ? 'Reasoning' : message.sender}</span>
