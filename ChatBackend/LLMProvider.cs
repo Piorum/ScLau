@@ -2,36 +2,36 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Channels;
+using ChatBackend.Interfaces;
 using ChatBackend.Models;
 using ChatBackend.Models.Ollama;
 
 namespace ChatBackend;
 
 
-public static class LLMProvider
+public class OllamaProvider(HttpClient client) : ILLMProvider
 {
-    private static readonly HttpClient _client = new();
-    private static readonly JsonSerializerOptions defaultRequestOptions = new() { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull };
+    private readonly HttpClient _client = client;
+    private readonly JsonSerializerOptions defaultRequestOptions = new() { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull };
 
-    static public ChannelReader<string> StreamCompletionAsync(string prompt, string modelName, ChatOptions options, Channel<string>? existingChannel = null, CancellationToken cancellationToken = default)
+    public IAsyncEnumerable<string> StreamCompletionAsync(string prompt, string modelName, ChatOptions options, CancellationToken cancellationToken = default)
     {
-        Channel<string> channel = existingChannel ?? Channel.CreateUnbounded<string>();
+        Channel<string> channel = Channel.CreateUnbounded<string>();
 
         _ = Task.Run(async () =>
         {
-            string url = Environment.GetEnvironmentVariable("OLLAMA_ENDPOINT") ?? throw new("OLLAMA_ENDPOINT was null");
-
-            //Other request values will be initialized by environment variables in the constructor
             var requestBody = new OllamaRequest()
             {
                 Model = modelName,
                 Prompt = prompt,
                 Options = options.ModelOptions
             };
-            var jsonRequest = JsonSerializer.Serialize(requestBody, defaultRequestOptions);
-            var request = new HttpRequestMessage(HttpMethod.Post, url)
+            var request = new HttpRequestMessage(HttpMethod.Post, "/api/generate")
             {
-                Content = new StringContent(jsonRequest, Encoding.UTF8, "application/json")
+                Content = new StringContent(
+                    JsonSerializer.Serialize(requestBody, defaultRequestOptions),
+                    Encoding.UTF8,
+                    "application/json")
             };
 
             try
@@ -73,7 +73,7 @@ public static class LLMProvider
 
         }, CancellationToken.None);
 
-        return channel.Reader;
+        return channel.Reader.ReadAllAsync(CancellationToken.None);
     }
 
 }

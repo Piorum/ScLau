@@ -22,9 +22,9 @@ services:
     container_name: chatbackend
     restart: unless-stopped
     environment:
-      - CONNECTION_STRING=Host=db;Database=chat_db;Username=user;Password=password
-      - OLLAMA_ENDPOINT=http://ollama:11434/api/generate #Docker hosted endpoint
-      #- OLLAMA_ENDPOINT=http://host.docker.internal:11434/api/generate #Locally hosted endpoint
+      - POSTGRES_CONNECTION_STRING=Host=db;Database=chat_db;Username=user;Password=password
+      - OLLAMA_BASE_ADDRESS=http://ollama:11434 #Docker hosted endpoint
+      #- OLLAMA_ENDPOINT=http://host.docker.internal:11434 #Locally hosted endpoint
 
       #Model Parameters
       #- TEMPERATURE=0.7

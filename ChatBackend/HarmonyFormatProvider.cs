@@ -7,8 +7,9 @@ using ChatBackend.Models;
 
 namespace ChatBackend;
 
-public class HarmonyFormatProvider(IToolFactory toolFactory) : IChatProvider
+public class HarmonyFormatProvider(ILLMProvider llmProvider, IToolFactory toolFactory) : IChatProvider
 {
+    private readonly ILLMProvider _llmProvider = llmProvider;
     private readonly IToolFactory _toolFactory = toolFactory;
 
     public string Name { get; } = nameof(HarmonyFormatProvider);
@@ -34,7 +35,7 @@ public class HarmonyFormatProvider(IToolFactory toolFactory) : IChatProvider
 
                 var model = ExtendedOptionDescriptors.Model.GetValue<string>(options);
 
-                var modelOutput = LLMProvider.StreamCompletionAsync($"{prompt}{HarmonyTokens.Start}{HarmonyRoles.Assistant}", model, options, cancellationToken: cancellationToken);
+                var modelOutput = _llmProvider.StreamCompletionAsync($"{prompt}{HarmonyTokens.Start}{HarmonyRoles.Assistant}", model, options, cancellationToken: cancellationToken);
 
                 ChatState state = new(_toolFactory, promptHasAssistantTrail: true)
                 {
@@ -46,7 +47,7 @@ public class HarmonyFormatProvider(IToolFactory toolFactory) : IChatProvider
 
                 try
                 {
-                    await foreach (var token in modelOutput.ReadAllAsync(cancellationToken: cancellationToken))
+                    await foreach (var token in modelOutput)
                     {
                         if (token is null) continue;
 

@@ -7,19 +7,21 @@ using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddHttpClient();
-
 builder.Services.AddControllers();
 
-var connectionString = Environment.GetEnvironmentVariable("CONNECTION_STRING") ?? throw new("CONNECTION_STRING is null");
-var dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
-dataSourceBuilder.EnableDynamicJson();
-await using var dataSource = dataSourceBuilder.Build();
-builder.Services.AddDbContextFactory<ChatContext>(options => options.UseNpgsql(dataSource));
+
+builder.Services.AddDbContextFactory<ChatContext>(options =>
+    options.UseNpgsql( new NpgsqlDataSourceBuilder(builder.Configuration["POSTGRES_CONNECTION_STRING"] ?? throw new("POSTGRES_CONNECTION_STRING is null."))
+        .EnableDynamicJson()
+        .Build()
+    ));
 
 builder.Services.AddSingleton<IChatCache, ChatCache>();
 
 builder.Services.AddSingleton<IToolFactory, ToolFactory>();
+
+builder.Services.AddHttpClient<ILLMProvider, OllamaProvider>(client =>
+    client.BaseAddress = new Uri(builder.Configuration["OLLAMA_BASE_ADDRESS"] ?? throw new("OLLAMA_BASE_ADDRESS is null.")));
 
 builder.Services.AddSingleton<IChatProvider, HarmonyFormatProvider>();
 builder.Services.AddSingleton<IChatProviderFactory, ChatProviderFactory>();
