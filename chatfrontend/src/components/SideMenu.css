@@ -103,6 +103,25 @@
   transition: flex-grow 0.15s ease-in-out, transform 0.15s ease-in-out;
 }
 
+@media (max-width: 767px) {
+  .menu-button .menu-button-actions {
+    opacity: 1;
+    max-width: 150px;
+    transition: none;
+  }
+
+  .menu-button .menu-button-text {
+    max-width: 184px;
+    transition: none;
+  }
+}
+
+@media (min-width: 767px) {
+  .menu-button-actions button:nth-child(2):hover {
+    color: var(--color-destructive);
+  }
+}
+
 .menu-button-actions button {
   background: none;
   border: none;
@@ -110,9 +129,6 @@
   padding: 2px 5px;
   color: var(--color-text-main);
   margin-top: 3px;
-}
-.menu-button-actions button:nth-child(2):hover {
-  color: var(--color-destructive);
 }
 
 .edit-chat-title-container {
