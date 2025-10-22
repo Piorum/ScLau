@@ -5,8 +5,7 @@ namespace ChatBackend.Models;
 
 public record ChatMessage : IExtensibleProperties
 {
-    public Guid MessageId { get; init; } //PK
-    public Guid ChatHistoryId { get; set; } //FK
+    public Guid MessageId { get; init; } //Key
     public MessageRole Role { get; init; }
     public string? Content { get; set; } = null;
     public ToolContext? ToolContext { get; set; } = null;
