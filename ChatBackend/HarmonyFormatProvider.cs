@@ -1,5 +1,4 @@
 using System.Collections;
-using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Channels;
@@ -32,8 +31,7 @@ public class HarmonyFormatProvider(ILLMProvider llmProvider, IToolFactory toolFa
 
             while (!isConversationDone)
             {
-                bool continuation = history.Messages.LastOrDefault() is { Role: not MessageRole.User };
-                var prompt = new HarmonyFormatHistoryBuilder(_toolFactory).WithHistory(history).WithOptions(options).ToString(continuation);
+                var prompt = new HarmonyFormatHistoryBuilder(_toolFactory).WithHistory(history).WithOptions(options).ToString();
 
                 var model = ExtendedOptionDescriptors.Model.GetValue<string>(options);
 
@@ -287,7 +285,7 @@ public class HarmonyFormatProvider(ILLMProvider llmProvider, IToolFactory toolFa
             return this;
         }
 
-        private void Compile(bool continuation = false)
+        private void Compile()
         {
             sb.Clear();
 
@@ -299,7 +297,7 @@ public class HarmonyFormatProvider(ILLMProvider llmProvider, IToolFactory toolFa
 
             if (history is not null)
             {
-                AppendMessageHistory(continuation);
+                AppendMessageHistory();
             }
 
         }
@@ -384,11 +382,10 @@ public class HarmonyFormatProvider(ILLMProvider llmProvider, IToolFactory toolFa
                 _ => "any"
             };
         
-        private void AppendMessageHistory(bool continuation)
+        private void AppendMessageHistory()
         {
-            for(var i = 0; i < history!.Messages.Count; i++)
+            foreach (var message in history!.Messages)
             {
-                var message = history.Messages[i];
                 if (message.Role == MessageRole.Tool)
                 {
                     AppendToolMessage(message.ToolContext!);
@@ -400,14 +397,12 @@ public class HarmonyFormatProvider(ILLMProvider llmProvider, IToolFactory toolFa
                     MessageRole.User => HarmonyRoles.User,
                     MessageRole.Assistant => HarmonyRoles.Assistant,
                     MessageRole.System => HarmonyRoles.System,
-                    _ => throw new UnreachableException($"Message had unexpected role value provided: {message.Role}")
+                    _ => throw new ArgumentOutOfRangeException(nameof(message.Role), message.Role, "Unexpected enum value provided.")
                 };
 
                 string? channelText = GetExtendedProperty(message, ExtendedMessagePropertyKeys.Channel);
 
-                string? endToken = (continuation && i == history.Messages.Count - 1)
-                    ? "" //blank end token if continuation is true and it's the last message
-                    : GetExtendedProperty(message, ExtendedMessagePropertyKeys.EndToken);
+                string? endToken = GetExtendedProperty(message, ExtendedMessagePropertyKeys.EndToken);
 
                 AppendMessage(roleText, message.Content!, channelText, endToken);
             }
@@ -436,12 +431,6 @@ public class HarmonyFormatProvider(ILLMProvider llmProvider, IToolFactory toolFa
         public override string ToString()
         {
             Compile();
-            return sb.ToString();
-        }
-
-        public string ToString(bool continuation)
-        {
-            Compile(continuation);
             return sb.ToString();
         }
     }
