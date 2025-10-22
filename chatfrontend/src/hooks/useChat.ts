@@ -312,127 +312,66 @@ export const useChat = () => {
   const startNewChat = useCallback(() => {
     dispatch({ type: 'set_active_chat_id', payload: null });
   }, []);
-
     const sendMessage = useCallback(async (inputValue: string) => {
-
       if (!inputValue.trim()) return;
 
-  
-
       let chatId = state.activeChatId;
-
       const isNewChat = !chatId;
-
       if (isNewChat) {
-
           chatId = randomUUID();
-
           dispatch({ type: 'set_active_chat_id', payload: chatId });
-
           const newChatItem: ChatListItem = {
-
               chatId: chatId,
-
               lastMessage: Math.floor(Date.now() / 1000),
-
               title: 'New Chat',
-
           };
-
           dispatch({ type: 'add_chat', payload: newChatItem });
-
       }
-
-  
 
       const userMessageId = randomUUID();
-
       const userMessage: Message = {
-
         id: userMessageId,
-
         text: inputValue,
-
         sender: 'user',
-
       };
-
       dispatch({ type: 'add_user_message', payload: userMessage, chatId: chatId! });
-
       dispatch({ type: 'set_is_responding', payload: true, chatId: chatId! });
 
-  
-
       try {
-
         const response = await fetch(`/api/chats/${chatId}/messages`, {
-
           method: 'POST',
-
           headers: { 'Content-Type': 'application/json' },
-
           body: JSON.stringify({
-
             userPrompt: inputValue,
-
             userMessageId: userMessageId,
-
           }),
-
         });
 
-  
-
         if (!response.ok || !response.body) {
-
           throw new Error(`HTTP error! status: ${response.status}`);
-
         }
-
-  
 
         for await (const event of streamChat(response.body.getReader())) {
-
           dispatch({ type: 'stream_event', payload: event, chatId: chatId! });
-
         }
-
-  
 
         if (isNewChat) {
-
           try {
-
             await fetch(`/api/chats/${chatId}/title`);
-
           } catch (error) {
-
             console.error('Failed to generate title:', error);
-
           }
-
         }
-
-  
-
+        
         loadChats();
-
       } catch (error) {
-
         const errorId = randomUUID();
-
         const errorMessage = `Error: ${error instanceof Error ? error.message : String(error)}`;
-
         const event: MessageStreamEvent = { type: 'reasoning_started', payload: { messageId: errorId, chunk: errorMessage } };
-
         dispatch({ type: 'stream_event', payload: event, chatId: chatId! });
-
         const doneEvent: MessageStreamEvent = { type: 'stream_done' };
-
         dispatch({ type: 'stream_event', payload: doneEvent, chatId: chatId! });
-
       }
-
     }, [state.activeChatId, loadChats]);
 
   const deleteMessage = useCallback(async (messageId: string | string[]) => {
@@ -449,7 +388,6 @@ export const useChat = () => {
       ));
       if (results.some(res => !res.ok)) {
         console.error('One or more messages failed to delete.');
-        // Simple error handling. A real app might have a more robust retry or rollback mechanism. 
       }
     } catch (error) {
       console.error("Failed to delete message(s):", error);
