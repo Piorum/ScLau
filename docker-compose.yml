@@ -37,7 +37,7 @@ services:
     #  - "host.docker.internal:host-gateway" #remap to host.docker.internal so Linux matches Windows/MacOS
 
   db:
-    image: postgres@sha256:f898ac406e1a9e05115cc2efcb3c3abb3a92a4c0263f3b6f6aaae354cbb1953a
+    image: postgres@sha256:bfe50b2b0ddd9b55eadedd066fe24c7c6fe06626185b73358c480ea37868024d
     container_name: db
     restart: unless-stopped
     environment:
@@ -53,7 +53,7 @@ services:
 
   #Remove this service if running ollama locally
   ollama:
-    image: ollama/ollama@sha256:bf65a7c25eb4561131ccbecd81991a5fdb37d8970958a3877533358ff28e0620
+    image: ollama/ollama@sha256:2c9595c555fd70a28363489ac03bd5bf9e7c5bdf2890373c3a830ffd7252ce6d
     container_name: ollama
     #Docker CDI
     devices:
