@@ -31,7 +31,7 @@
   right: 0;
   bottom: 0;
   background-color: var(--color-border);
-  transition: 0.4s;
+  transition: transform 0.3s;
   border-radius: 28px;
 }
 
@@ -44,7 +44,7 @@
   left: 3px;
   bottom: 3px;
   background-color: var(--color-app-bg);
-  transition: 0.4s;
+  transition: transform 0.3s;
   border-radius: 50%;
 }
 
