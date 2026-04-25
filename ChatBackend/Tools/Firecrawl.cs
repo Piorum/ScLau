@@ -1,4 +1,4 @@
-using System.Net.Http.Json;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using ChatBackend.Attributes;
@@ -53,6 +53,16 @@ public static class FirecrawlService
                 new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
  
         _client = new FirecrawlClient(_http);
+    }
+
+    
+    [ModuleInitializer]
+    internal static void Initialize()
+    {
+        Configure(
+            baseUrl: "http://firecrawl:3002",
+            apiKey:  null
+        );
     }
 }
  

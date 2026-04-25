@@ -2,7 +2,6 @@ using ChatBackend;
 using ChatBackend.Data;
 using ChatBackend.Factories;
 using ChatBackend.Interfaces;
-using ChatBackend.Tools;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 
@@ -26,11 +25,6 @@ builder.Services.AddHttpClient<ILLMProvider, OllamaProvider>(client =>
 
 builder.Services.AddSingleton<IChatProvider, HarmonyFormatProvider>();
 builder.Services.AddSingleton<IChatProviderFactory, ChatProviderFactory>();
-
-FirecrawlService.Configure(
-    baseUrl: "http://firecrawl:3002",
-    apiKey:  null
-);
 
 var app = builder.Build();
 
