@@ -55,7 +55,6 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--color-darkest-bg);
-  transition: background-color 0.3s ease;
 }
 
 /* Main App container using flexbox for layout */
@@ -65,7 +64,6 @@ body {
   background-color: var(--color-app-bg);
   color: var(--color-text-main);
   overflow: hidden;
-  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .main-content-wrapper {
