@@ -76,6 +76,11 @@ public class ToolFactory : IToolFactory
             ? toolInfo
             : null;
             
+    private static readonly JsonSerializerOptions paramObjDeserializeOptions = new() 
+    { 
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower 
+    };
+
     public async Task<ToolResult> ExecuteTool(string toolName, JsonElement parameters)
     {
         if (!_toolExecutioninfos.TryGetValue(toolName, out var info))
@@ -86,7 +91,7 @@ public class ToolFactory : IToolFactory
         {
             paramObj = parameters.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined
                 ? Activator.CreateInstance(info.ParameterType)
-                : JsonSerializer.Deserialize(parameters, info.ParameterType);
+                : JsonSerializer.Deserialize(parameters, info.ParameterType, paramObjDeserializeOptions);
         }
         catch (Exception ex)
         {
