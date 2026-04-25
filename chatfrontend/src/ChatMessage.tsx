@@ -28,9 +28,9 @@ interface ChatMessageProps {
   regenerate: (messageId: string) => void;
 }
 
-/* ------------------------------------------------------------------ */
-/* Main component – memoised so unchanged messages never re‑render   */
-/* ------------------------------------------------------------------ */
+/* --------------------------------------------------------------- */
+/*  Main component – memoised so unchanged messages never re‑render*/
+/* --------------------------------------------------------------- */
 const ChatMessage: React.FC<ChatMessageProps> = ({
   message,
   deleteMessage,
@@ -38,9 +38,9 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   branch,
   regenerate,
 }) => {
-  /* ------------------------------------------------------------------
-     Local UI state
-  ------------------------------------------------------------------ */
+  /* ----------------------------------------------------------- */
+  /*  Local UI state                                             */
+  /* ----------------------------------------------------------- */
   const [isEditing, setIsEditing] = useState(false);
   const [isSelected, setIsSelected] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -48,10 +48,9 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
   const contentRef = useRef<HTMLDivElement>(null);
   const messageRef = useRef<HTMLDivElement>(null);
 
-  /* ------------------------------------------------------------------
-     1️⃣  Detect mobile breakpoint – we only need ONE listener for the
-         whole app, but keeping it here is fine for a quick win.
-  ------------------------------------------------------------------ */
+  /* ----------------------------------------------------------- */
+  /*  1️⃣  Detect mobile breakpoint                               */
+  /* ----------------------------------------------------------- */
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 768px)');
     setIsMobile(mq.matches);
@@ -60,24 +59,9 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
     return () => mq.removeEventListener('change', handler);
   }, []);
 
-  /* ------------------------------------------------------------------
-     2️⃣  Emoji parsing – run only when the raw text changes.
-         The result is cached in `emojiHtml` and rendered with
-         `dangerouslySetInnerHTML` (safe because twemoji only produces
-         SVG <img> tags).
-  ------------------------------------------------------------------ */
-  const [emojiHtml, setEmojiHtml] = useState<string>('');
-  useEffect(() => {
-    // Create a temporary element so twemoji can replace Unicode emoji.
-    const tmp = document.createElement('div');
-    tmp.textContent = message.text; // plain text first
-    twemoji.parse(tmp, { folder: 'svg', ext: '.svg' });
-    setEmojiHtml(tmp.innerHTML);
-  }, [message.text]);
-
-  /* ------------------------------------------------------------------
-     3️⃣  Markdown → React rendering – memoised per message text.
-  ------------------------------------------------------------------ */
+  /* ----------------------------------------------------------- */
+  /*  2️⃣  Render markdown – memoised per message text           */
+  /* ----------------------------------------------------------- */
   const renderedMarkdown = useMemo(() => {
     return (
       <ReactMarkdown
@@ -89,9 +73,25 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
     );
   }, [message.text]);
 
-  /* ------------------------------------------------------------------
-     4️⃣  Click‑outside handling (mobile selection)
-  ------------------------------------------------------------------ */
+  /* ----------------------------------------------------------- */
+  /*  3️⃣  After the markdown is in the DOM, replace emojis with
+          the SVG version (twemoji). This runs only when the text
+          changes, not on every scroll or keystroke.               */
+  /* ----------------------------------------------------------- */
+  useEffect(() => {
+    if (contentRef.current) {
+      // `twemoji.parse` walks the subtree and swaps each Unicode emoji
+      // with an <img> element that points at the CDN SVG.
+      twemoji.parse(contentRef.current, {
+        folder: 'svg',
+        ext: '.svg',
+      });
+    }
+  }, [message.text]); // only re‑run when the source text changes
+
+  /* ----------------------------------------------------------- */
+  /*  4️⃣  Click‑outside handling (mobile selection)             */
+  /* ----------------------------------------------------------- */
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (isMobile && messageRef.current && !messageRef.current.contains(e.target as Node)) {
@@ -102,10 +102,9 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isMobile]);
 
-  /* ------------------------------------------------------------------
-     Action callbacks – wrapped in `useCallback` so the parent memo
-     does not think they change on every render.
-  ------------------------------------------------------------------ */
+  /* ----------------------------------------------------------- */
+  /*  5️⃣  Action callbacks – stable references                  */
+  /* ----------------------------------------------------------- */
   const handleEdit = useCallback(() => setIsEditing(true), []);
   const handleDelete = useCallback(() => deleteMessage(message.id), [deleteMessage, message.id]);
   const handleBranch = useCallback(() => branch(message.id), [branch, message.id]);
@@ -118,15 +117,15 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
     },
     [editMessage, message.id]
   );
-  const handleCancel = useCallback(() => setIsEditing(false), []);
 
+  const handleCancel = useCallback(() => setIsEditing(false), []);
   const handleWrapperClick = useCallback(() => {
     if (isMobile) setIsSelected(prev => !prev);
   }, [isMobile]);
 
-  /* ------------------------------------------------------------------
-     Rendering
-  ------------------------------------------------------------------ */
+  /* ----------------------------------------------------------- */
+  /*  Rendering                                                  */
+  /* ----------------------------------------------------------- */
   if (isEditing) {
     return (
       <div className={`chat-message-wrapper ${message.sender}`}>
@@ -176,7 +175,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
           isMobile && isSelected ? 'selected' : ''
         }`}
       >
-        {/* Show the action icons only for non‑streaming messages */}
+        {/* Action icons – hidden while streaming */}
         {!message.isStreaming && (
           <MessageActions
             onEdit={handleEdit}
@@ -186,18 +185,17 @@ const ChatMessage: React.FC<ChatMessageProps> = ({
           />
         )}
 
-        {/* Emoji‑parsed HTML (cached) */}
-        <div ref={contentRef} dangerouslySetInnerHTML={{ __html: emojiHtml }} />
-
-        {/* Fallback to markdown if the message contains formatting that
-            isn’t covered by emojis (e.g., code blocks, tables) */}
-        <div className="markdown-content">{renderedMarkdown}</div>
+        {/* The **single** rendered block:
+            • Markdown (code, tables, LaTeX, etc.)
+            • After it lands in the DOM we run twemoji.parse → emojis become SVGs
+        */}
+        <div ref={contentRef}>{renderedMarkdown}</div>
       </div>
     </div>
   );
 };
 
-/* ------------------------------------------------------------------ */
-/* Export a memoised version – unchanged props = no re‑render           */
-/* ------------------------------------------------------------------ */
+/* --------------------------------------------------------------- */
+/*  Export a memoised version – unchanged props = no re‑render      */
+/* --------------------------------------------------------------- */
 export default React.memo(ChatMessage);
