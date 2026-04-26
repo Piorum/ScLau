@@ -28,26 +28,37 @@ public class Gemma4FormatProvider(ILLMProvider llmProvider, IToolFactory toolFac
             options.ModelOptions.Stop = ["<turn|>", "<tool_call|>"];
             var prompt = new Gemma4FormatHistoryBuilder(_toolFactory).WithHistory(history).WithOptions(options).ToString();
 
-            await Console.Out.WriteLineAsync($"### PROMPT ###\n\n{prompt}\n\n##############");
-
             var model = ExtendedOptionDescriptors.Model.GetValue<string>(options);
+            var thinking = ExtendedOptionDescriptors.Thinking.GetValue<bool>(options);
 
-            var modelOutput = _llmProvider.StreamCompletionAsync($"{prompt}{Gemma4Tokens.Initiator(options)}", model, options, cancellationToken: cancellationToken);
+            var modelOutput = _llmProvider.StreamCompletionAsync($"{prompt}{Gemma4Tokens.Initiator(thinking)}", model, options, cancellationToken: cancellationToken);
             
             StringBuilder sb = new();
+            Guid guid = Guid.NewGuid();
+
+            //Frontend expects first token to be Reasoning, just send one when thinking is disabled for now.
+            if(!thinking)
+                await channel.Writer.WriteAsync(new()
+                {
+                    MessageId = Guid.NewGuid(), 
+                    ContentType = ContentType.Reasoning, 
+                    ContentChunk = "Thinking Disabled", 
+                    IsDone = false 
+                });
+
             await foreach (var token in modelOutput)
             {
                 sb.Append(token);
                 await channel.Writer.WriteAsync(new()
                 {
-                    MessageId = Guid.Empty,
+                    MessageId = guid,
                     ContentType = ContentType.Answer,
                     ContentChunk = token,
                     IsDone = false
                 });
             }
 
-            history.Messages.Add(ChatMessage.CreateAssistantMessage(Guid.NewGuid(), sb.ToString(), ContentType.Answer));
+            history.Messages.Add(ChatMessage.CreateAssistantMessage(guid, sb.ToString(), ContentType.Answer));
 
             await channel.Writer.WriteAsync(new() { IsDone = true });
             channel.Writer.Complete();
@@ -249,7 +260,7 @@ public class Gemma4FormatProvider(ILLMProvider llmProvider, IToolFactory toolFac
 
             Type = ProviderOptionType.String,
 
-            DefaultValue = "gemma4:26b"
+            DefaultValue = "gemma4:31b"
         };
 
         public readonly static ProviderOptionDescriptor Thinking = new()
@@ -281,8 +292,8 @@ public class Gemma4FormatProvider(ILLMProvider llmProvider, IToolFactory toolFac
         public const string ToolQuote = "<|\"|>";
         public static string TokenStart(string a) => $"<|{a}>";
         public static string TokenEnd(string a) => $"<{a}|>";
-        public static string Initiator(ChatOptions options) => $"\n{TokenStart(Gemma4TokenKeywords.Turn)}{Gemma4Roles.Model}\n{(
-            ExtendedOptionDescriptors.Thinking.GetValue<bool>(options) 
+        public static string Initiator(bool thinking) => $"\n{TokenStart(Gemma4TokenKeywords.Turn)}{Gemma4Roles.Model}\n{(
+            thinking 
                 ? "" 
                 : $"{TokenStart(Gemma4TokenKeywords.Channel)}{Gemma4Keywords.Thought}\n{TokenEnd(Gemma4TokenKeywords.Channel)}")}";
     }

@@ -36,8 +36,6 @@ services:
     extra_hosts:
       - "firecrawl:${FIRECRAWL_IP}"
       #- "host.docker.internal:host-gateway" #remap to host.docker.internal so Linux matches Windows/MacOS
-    ports:
-      - "5000:8080"
 
   db:
     image: postgres
