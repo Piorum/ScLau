@@ -169,81 +169,87 @@ public class HarmonyFormatProvider(ILLMProvider llmProvider, IToolFactory toolFa
 
             string[] nonToolCallChannelNames = [HarmonyChannels.Commentary, HarmonyChannels.Analysis, HarmonyChannels.Final];
             if (nonToolCallChannelNames.Contains(CurrentChannel))
+                return await ProcessNormalMessage(sb);
+            else
+                return await ProcessTool(sb);
+        }
+
+        public Task<bool> ProcessNormalMessage(StringBuilder sb)
+        {
+            UpdateHistory($"{sb}", HarmonyTokens.Return);
+            //return conversation is over
+            return Task.FromResult(true);
+        }
+
+        public async Task<bool> ProcessTool(StringBuilder sb)
+        {
+            string toolName = "unknown";
+            if (!string.IsNullOrEmpty(CurrentChannel))
             {
-                UpdateHistory($"{sb}", HarmonyTokens.Return);
-                //return conversation is over
-                return true;
+                string prefix = "commentary to=functions.";
+                string suffix = "<|constrain|>json";
+
+                if (CurrentChannel.StartsWith(prefix) && CurrentChannel.EndsWith(suffix))
+                    toolName = CurrentChannel[prefix.Length..^suffix.Length].Trim();
+            }
+
+            var callId = $"{Guid.NewGuid()}";
+            var callArguments = sb.ToString();
+            
+            var toolCall = ChatMessage.CreateToolMessage(CurrentMessageId, new(Id: callId, ToolName: toolName, Content: callArguments, Result: false));
+            History.Messages.Add(toolCall);
+
+            //Handle tool call
+            ToolResult callResult;
+            try
+            {
+                using JsonDocument document = JsonDocument.Parse(callArguments);
+                callResult = await ToolFactory.ExecuteTool(toolName, document.RootElement);
+            }
+            catch(JsonException)
+            {
+                callResult = ToolResult.Failure(ToolResultType.MalformedArguments, "Arguments could not be parsed into JSON.");
+            }
+
+            Guid messageId = Guid.NewGuid();
+            string content;
+            if (callResult.ResultType == ToolResultType.Success)
+            {
+                content = callResult.Result!;
+                var toolReturn = ChatMessage.CreateToolMessage(messageId, new(Id: callId, ToolName: toolName, Content: content, Result: true));
+                History.Messages.Add(toolReturn);
             }
             else
             {
-                string toolName = "unknown";
-                if (!string.IsNullOrEmpty(CurrentChannel))
+                content = callResult.ResultType switch
                 {
-                    string prefix = "commentary to=functions.";
-                    string suffix = "<|constrain|>json";
+                    ToolResultType.MalformedToolName => callResult.Error ?? $"Tool name \"{toolName}\" was incorrect, not a tool, or couldn't be parsed.",
+                    ToolResultType.MalformedArguments => callResult.Error ?? $"Arguments for \"{toolName}\" were incorrect or couldn't be parsed.",
+                    ToolResultType.ExecutionError => callResult.Error ?? "An error occured during execution of the tool.",
+                    _ => "Unhandled tool result error type.",
+                };
 
-                    if (CurrentChannel.StartsWith(prefix) && CurrentChannel.EndsWith(suffix))
-                        toolName = CurrentChannel[prefix.Length..^suffix.Length].Trim();
-                }
+                var errorReturn = ChatMessage.CreateSystemMessage(messageId, content, ContentType.Reasoning);
+                errorReturn.ExtendedProperties.Add(ExtendedMessagePropertyKeys.Channel, HarmonyChannels.Commentary);
+                History.Messages.Add(errorReturn);
 
-                var callId = $"{Guid.NewGuid()}";
-                var callArguments = sb.ToString();
-                var toolCall = ChatMessage.CreateToolMessage(CurrentMessageId, new(Id: callId, ToolName: toolName, Content: callArguments, Result: false));
-                History.Messages.Add(toolCall);
-
-                //Handle tool call
-                ToolResult callResult;
-                try
-                {
-                    using JsonDocument document = JsonDocument.Parse(callArguments);
-                    callResult = await ToolFactory.ExecuteTool(toolName, document.RootElement);
-                }
-                catch(JsonException)
-                {
-                    callResult = ToolResult.Failure(ToolResultType.MalformedArguments, "Arguments could not be parsed into JSON.");
-                }
-
-                Guid messageId = Guid.NewGuid();
-                string content;
-                if (callResult.ResultType == ToolResultType.Success)
-                {
-                    content = callResult.Result!;
-                    var toolReturn = ChatMessage.CreateToolMessage(messageId, new(Id: callId, ToolName: toolName, Content: content, Result: true));
-                    History.Messages.Add(toolReturn);
-                }
-                else
-                {
-                    content = callResult.ResultType switch
-                    {
-                        ToolResultType.MalformedToolName => callResult.Error ?? $"Tool name \"{toolName}\" was incorrect, not a tool, or couldn't be parsed.",
-                        ToolResultType.MalformedArguments => callResult.Error ?? $"Arguments for \"{toolName}\" were incorrect or couldn't be parsed.",
-                        ToolResultType.ExecutionError => callResult.Error ?? "An error occured during execution of the tool.",
-                        _ => "Unhandled tool result error type.",
-                    };
-
-                    var errorReturn = ChatMessage.CreateSystemMessage(messageId, content, ContentType.Reasoning);
-                    errorReturn.ExtendedProperties.Add(ExtendedMessagePropertyKeys.Channel, HarmonyChannels.Commentary);
-                    History.Messages.Add(errorReturn);
-
-                    await Console.Out.WriteLineAsync($"Tool call return error.\n\"{toolName}\" :: \"{callArguments}\"\n\n{callResult.Error}");
-                }
-
-                //Output result to frontend
-                await Channel.Writer.WriteAsync
-                (
-                    new()
-                    {
-                        ContentChunk = content,
-                        ContentType = ContentType.Reasoning,
-                        MessageId = messageId,
-                        IsDone = false
-                    }
-                );
-
-                //return false, conversation is not over
-                return false;
+                await Console.Out.WriteLineAsync($"Tool call return error.\n\"{toolName}\" :: \"{callArguments}\"\n\n{callResult.Error}");
             }
 
+            //Output result to frontend
+            await Channel.Writer.WriteAsync
+            (
+                new()
+                {
+                    ContentChunk = content,
+                    ContentType = ContentType.Reasoning,
+                    MessageId = messageId,
+                    IsDone = false
+                }
+            );
+
+            //return false, conversation is not over
+            return false;
         }
 
         private void UpdateHistory(string content, string? endToken = null)

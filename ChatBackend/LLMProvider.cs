@@ -42,12 +42,12 @@ public class OllamaProvider(HttpClient client) : ILLMProvider
                 using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
                 using var reader = new StreamReader(stream);
 
-                while (!reader.EndOfStream)
+                string? line;
+                while ((line = await reader.ReadLineAsync()) is not null)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-
-                    var line = await reader.ReadLineAsync();
-                    if (string.IsNullOrWhiteSpace(line)) continue;
+                    if (string.IsNullOrWhiteSpace(line)) 
+                        continue;
 
                     var responseObject = JsonSerializer.Deserialize<OllamaResponse>(line);
 

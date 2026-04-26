@@ -24,6 +24,7 @@ builder.Services.AddHttpClient<ILLMProvider, OllamaProvider>(client =>
     client.BaseAddress = new Uri(builder.Configuration["OLLAMA_BASE_ADDRESS"] ?? throw new("OLLAMA_BASE_ADDRESS is null.")));
 
 builder.Services.AddSingleton<IChatProvider, HarmonyFormatProvider>();
+builder.Services.AddSingleton<IChatProvider, Gemma4FormatProvider>();
 builder.Services.AddSingleton<IChatProviderFactory, ChatProviderFactory>();
 
 var app = builder.Build();
