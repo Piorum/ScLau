@@ -32,10 +32,12 @@ public class Gemma4FormatProvider(ILLMProvider llmProvider, IToolFactory toolFac
 
             var model = ExtendedOptionDescriptors.Model.GetValue<string>(options);
 
-            var modelOutput = _llmProvider.StreamCompletionAsync($"{prompt}{Gemma4Tokens.Initiator}", model, options, cancellationToken: cancellationToken);
+            var modelOutput = _llmProvider.StreamCompletionAsync($"{prompt}{Gemma4Tokens.Initiator(options)}", model, options, cancellationToken: cancellationToken);
             
+            StringBuilder sb = new();
             await foreach (var token in modelOutput)
             {
+                sb.Append(token);
                 await channel.Writer.WriteAsync(new()
                 {
                     MessageId = Guid.Empty,
@@ -44,6 +46,8 @@ public class Gemma4FormatProvider(ILLMProvider llmProvider, IToolFactory toolFac
                     IsDone = false
                 });
             }
+
+            history.Messages.Add(ChatMessage.CreateAssistantMessage(Guid.NewGuid(), sb.ToString(), ContentType.Answer));
 
             await channel.Writer.WriteAsync(new() { IsDone = true });
             channel.Writer.Complete();
@@ -174,24 +178,23 @@ public class Gemma4FormatProvider(ILLMProvider llmProvider, IToolFactory toolFac
                 else
                     AppendToolMessage(message.ToolContext!);
 
-            sb.Append(Gemma4Tokens.TokenEnd(Gemma4TokenKeywords.Turn));
+            sb.AppendLine(Gemma4Tokens.TokenEnd(Gemma4TokenKeywords.Turn));
         }
 
         private void AppendModelMessage(ChatMessage message, bool functionCallingTurn)
         {
             var messageContent = message.Content!;
             if(message.ContentType == ContentType.Reasoning)
-                if(functionCallingTurn)
-                    AppendModelMessageThinking(messageContent);
+                AppendModelMessageThinking(messageContent, functionCallingTurn);
             else
                 AppendModelMessageResponse(messageContent);
         }
 
-        private void AppendModelMessageThinking(string messageContent)
+        private void AppendModelMessageThinking(string messageContent, bool functionCallingTurn)
         {
             sb.Append(Gemma4Tokens.TokenStart(Gemma4TokenKeywords.Channel))
                 .AppendLine(Gemma4Keywords.Thought)
-                .Append(messageContent)
+                .Append(functionCallingTurn ? messageContent : $"{Gemma4Tokens.TokenStart(Gemma4TokenKeywords.Channel)}{Gemma4Keywords.Thought}\n{Gemma4Tokens.TokenEnd(Gemma4TokenKeywords.Channel)}")
                 .Append(Gemma4Tokens.TokenEnd(Gemma4TokenKeywords.Channel));
         }
 
@@ -257,7 +260,7 @@ public class Gemma4FormatProvider(ILLMProvider llmProvider, IToolFactory toolFac
 
             Type = ProviderOptionType.Boolean,
 
-            DefaultValue = true,
+            DefaultValue = false,
         };
     }
 
@@ -278,7 +281,10 @@ public class Gemma4FormatProvider(ILLMProvider llmProvider, IToolFactory toolFac
         public const string ToolQuote = "<|\"|>";
         public static string TokenStart(string a) => $"<|{a}>";
         public static string TokenEnd(string a) => $"<{a}|>";
-        public static string Initiator => $"\n{TokenStart(Gemma4TokenKeywords.Turn)}{Gemma4Roles.Model}\n";
+        public static string Initiator(ChatOptions options) => $"\n{TokenStart(Gemma4TokenKeywords.Turn)}{Gemma4Roles.Model}\n{(
+            ExtendedOptionDescriptors.Thinking.GetValue<bool>(options) 
+                ? "" 
+                : $"{TokenStart(Gemma4TokenKeywords.Channel)}{Gemma4Keywords.Thought}\n{TokenEnd(Gemma4TokenKeywords.Channel)}")}";
     }
 
     private static class Gemma4TokenKeywords
