@@ -249,25 +249,11 @@ public class ChatsController(IChatCache chatCache, IChatProviderFactory chatProv
         history.LastChatOptions = options;
 
         //These will be moved to the frontend eventually
-        options.ChatProvider = nameof(HarmonyFormatProvider);
-        options.SystemMessage = @"You are a helpful assistant with access to tools that can read live websites.
- 
-When a user asks about something that could be answered by looking at a website
-(documentation, product pages, articles, etc.), use your tools proactively:
- 
-  1. Call map_site on the relevant domain to find the right pages.
-  2. Call scrape_page on whichever URLs look most relevant — often more than one.
-  3. Synthesise what you found into a clear, direct answer. Do not dump raw
-     scraped text at the user; summarise and explain it.
- 
-If map_site returns links but none look relevant, say so and ask the user to
-clarify rather than guessing. If a page blocks scraping, try a different URL
-from the map results before giving up.
- 
-For requests that have nothing to do with websites, answer directly without
-using any tools.";
+        options.ChatProvider = nameof(Gemma4FormatProvider);
+        options.SystemMessage = @"You are a helpful assistant.";
         options.ModelOptions = new() { Temperature = 1.2f };
-        options.EnabledTools = ["get_current_weather","map_site","scrape_page"];
+        options.EnabledTools = [];
+        //options.EnabledTools = ["get_current_weather","map_site","scrape_page"];
 
         LatexStreamRewriter lsr = new();
         Response.ContentType = "application/x-ndjson";

@@ -1,4 +1,5 @@
 using System.Text;
+using System.Threading.Channels;
 using ChatBackend.Interfaces;
 using ChatBackend.Models;
 
@@ -9,7 +10,7 @@ public class Gemma4FormatProvider(ILLMProvider llmProvider, IToolFactory toolFac
     private readonly ILLMProvider _llmProvider = llmProvider;
     private readonly IToolFactory _toolFactory = toolFactory;
 
-    public string Name { get; } = nameof(HarmonyFormatProvider);
+    public string Name { get; } = nameof(Gemma4FormatProvider);
 
     public IEnumerable<ProviderOptionDescriptor> ExtendedOptions { get; private set; } =
     [
@@ -19,7 +20,37 @@ public class Gemma4FormatProvider(ILLMProvider llmProvider, IToolFactory toolFac
 
     public IAsyncEnumerable<ModelResponse> ContinueChatAsync(ChatHistory history, ChatOptions options, CancellationToken cancellationToken = default)
     {
-        throw new NotImplementedException();
+        Channel<ModelResponse> channel = Channel.CreateUnbounded<ModelResponse>();
+
+        _ = Task.Run(async () =>
+        {
+            options.ModelOptions ??= new();
+            options.ModelOptions.Stop = ["<turn|>", "<tool_call|>"];
+            var prompt = new Gemma4FormatHistoryBuilder(_toolFactory).WithHistory(history).WithOptions(options).ToString();
+
+            await Console.Out.WriteLineAsync($"### PROMPT ###\n\n{prompt}\n\n##############");
+
+            var model = ExtendedOptionDescriptors.Model.GetValue<string>(options);
+
+            var modelOutput = _llmProvider.StreamCompletionAsync($"{prompt}{Gemma4Tokens.Initiator}", model, options, cancellationToken: cancellationToken);
+            
+            await foreach (var token in modelOutput)
+            {
+                await channel.Writer.WriteAsync(new()
+                {
+                    MessageId = Guid.Empty,
+                    ContentType = ContentType.Answer,
+                    ContentChunk = token,
+                    IsDone = false
+                });
+            }
+
+            await channel.Writer.WriteAsync(new() { IsDone = true });
+            channel.Writer.Complete();
+
+        }, CancellationToken.None);
+
+        return channel.Reader.ReadAllAsync(CancellationToken.None);
     }
 
     private class Gemma4FormatHistoryBuilder(IToolFactory toolFactory)
@@ -226,7 +257,7 @@ public class Gemma4FormatProvider(ILLMProvider llmProvider, IToolFactory toolFac
 
             Type = ProviderOptionType.Boolean,
 
-            DefaultValue = false,
+            DefaultValue = true,
         };
     }
 
@@ -247,6 +278,7 @@ public class Gemma4FormatProvider(ILLMProvider llmProvider, IToolFactory toolFac
         public const string ToolQuote = "<|\"|>";
         public static string TokenStart(string a) => $"<|{a}>";
         public static string TokenEnd(string a) => $"<{a}|>";
+        public static string Initiator => $"\n{TokenStart(Gemma4TokenKeywords.Turn)}{Gemma4Roles.Model}\n";
     }
 
     private static class Gemma4TokenKeywords
