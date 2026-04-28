@@ -36,8 +36,21 @@ public class Gemma4FormatProvider(ILLMProvider llmProvider, IToolFactory toolFac
             StringBuilder sb = new();
             Guid guid = Guid.NewGuid();
 
+            //Wait for first item so we don't send thinking disabled until model loads
+            await using var enumerator = modelOutput.GetAsyncEnumerator();
+            var hasItem = await enumerator.MoveNextAsync();
+
+            //Send something so the Frontend doesn't just wait for timeout
+            if(!hasItem)
+                await channel.Writer.WriteAsync(new()
+                {
+                    MessageId = Guid.NewGuid(),
+                    ContentType = ContentType.Answer,
+                    ContentChunk = "LLM provider gave no response.",
+                    IsDone = false
+                });
             //Frontend expects first token to be Reasoning, just send one when thinking is disabled for now.
-            if(!thinking)
+            else if(!thinking)
                 await channel.Writer.WriteAsync(new()
                 {
                     MessageId = Guid.NewGuid(), 
@@ -46,8 +59,11 @@ public class Gemma4FormatProvider(ILLMProvider llmProvider, IToolFactory toolFac
                     IsDone = false 
                 });
 
-            await foreach (var token in modelOutput)
+            //Iterate through each token
+            while(hasItem)
             {
+                var token = enumerator.Current;
+
                 sb.Append(token);
                 await channel.Writer.WriteAsync(new()
                 {
@@ -56,9 +72,12 @@ public class Gemma4FormatProvider(ILLMProvider llmProvider, IToolFactory toolFac
                     ContentChunk = token,
                     IsDone = false
                 });
+
+                hasItem = await enumerator.MoveNextAsync();
             }
 
-            history.Messages.Add(ChatMessage.CreateAssistantMessage(guid, sb.ToString(), ContentType.Answer));
+            if(sb.Length != 0)
+                history.Messages.Add(ChatMessage.CreateAssistantMessage(guid, sb.ToString(), ContentType.Answer));
 
             await channel.Writer.WriteAsync(new() { IsDone = true });
             channel.Writer.Complete();
@@ -260,7 +279,7 @@ public class Gemma4FormatProvider(ILLMProvider llmProvider, IToolFactory toolFac
 
             Type = ProviderOptionType.String,
 
-            DefaultValue = "gemma4:31b"
+            DefaultValue = "gemma4:26b"
         };
 
         public readonly static ProviderOptionDescriptor Thinking = new()
